@@ -5,6 +5,9 @@ The comparison source is the v1 dialog code under `src/v1/ui/dlg`, plus the
 season settings and menu commands that remain in `src/v1/taiga/settings_keys.*`
 and `src/v1/ui/command.cpp`.
 
+For the component-by-component checklist, see
+`docs/screen-component-parity-map.md`.
+
 | v1 screen or shell part | Qt migration status |
 | --- | --- |
 | Main menu | Present: File, Services, Tools, View, Help. Services keeps sync/export actions; View exposes Now Playing and status bar toggles. |

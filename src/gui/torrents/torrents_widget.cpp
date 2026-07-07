@@ -11,7 +11,10 @@
 #include "torrents_widget.hpp"
 
 #include <QAction>
+#include <QApplication>
 #include <QDesktopServices>
+#include <QDir>
+#include <QFile>
 #include <QHeaderView>
 #include <QIcon>
 #include <QLabel>
@@ -20,14 +23,19 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPushButton>
+#include <QShortcut>
 #include <QSizePolicy>
 #include <QTableWidget>
+#include <QTimer>
 #include <QToolBar>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <algorithm>
+#include <optional>
 
 #include "base/string.hpp"
 #include "gui/settings/settings_dialog.hpp"
+#include "gui/main/main_window.hpp"
 #include "media/anime_db.hpp"
 #include "taiga/network.hpp"
 #include "taiga/settings.hpp"
@@ -67,13 +75,14 @@ QString statusIconPath(anime::Status status) {
 }
 
 QIcon torrentIcon(const track::torrent::Item& item) {
-  for (const auto& anime : anime::db.items()) {
-    const auto title = QString::fromStdString(anime.titles.romaji);
-    if (!title.isEmpty() && item.title.contains(title, Qt::CaseInsensitive)) {
-      return QIcon(statusIconPath(anime.status));
-    }
+  if (const auto anime = anime::db.item(item.anime_id)) {
+    return QIcon(statusIconPath(anime->status));
   }
   return QIcon(statusIconPath(anime::Status::Unknown));
+}
+
+bool isGroupRow(const QTableWidgetItem* item) {
+  return item && item->data(Qt::UserRole).toInt() < 0;
 }
 
 }  // namespace
@@ -88,9 +97,8 @@ TorrentsWidget::TorrentsWidget(QWidget* parent) : QWidget(parent) {
   toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
   toolbar->setMovable(false);
   toolbar->setFloatable(false);
-  auto* refreshAction =
-      toolbar->addAction(QIcon(":/icons/classic/16px/arrow-circle-315.png"),
-                         tr("Check new torrents"));
+  refreshAction_ = toolbar->addAction(QIcon(":/icons/classic/16px/arrow-circle-315.png"),
+                                      tr("Check new torrents"));
   toolbar->addSeparator();
   auto* openAction =
       toolbar->addAction(QIcon(":/icons/classic/16px/navigation-270-button.png"),
@@ -136,20 +144,29 @@ TorrentsWidget::TorrentsWidget(QWidget* parent) : QWidget(parent) {
   statusLabel_ = new QLabel(this);
   layout->addWidget(statusLabel_);
 
-  connect(refreshAction, &QAction::triggered, this, &TorrentsWidget::fetch);
+  connect(refreshAction_, &QAction::triggered, this, &TorrentsWidget::fetch);
   connect(openAction, &QAction::triggered, this, &TorrentsWidget::openSelected);
   connect(discardAllAction, &QAction::triggered, this, &TorrentsWidget::archiveVisible);
   connect(settingsAction, &QAction::triggered, this, &TorrentsWidget::showSettings);
   connect(filterEdit_, &QLineEdit::textChanged, this, &TorrentsWidget::populate);
   connect(table_, &QTableWidget::itemDoubleClicked, this, [this]() { openSelected(); });
+  connect(table_, &QTableWidget::itemChanged, this, &TorrentsWidget::handleItemChanged);
   connect(table_, &QWidget::customContextMenuRequested, this, &TorrentsWidget::showContextMenu);
+  connect(new QShortcut(QKeySequence{Qt::Key_Return}, table_), &QShortcut::activated, this,
+          &TorrentsWidget::openSelected);
+  connect(new QShortcut(QKeySequence{Qt::Key_Enter}, table_), &QShortcut::activated, this,
+          &TorrentsWidget::openSelected);
 
+  autoCheckTimer_ = new QTimer(this);
+  connect(autoCheckTimer_, &QTimer::timeout, this, &TorrentsWidget::tickAutoCheck);
+  resetAutoCheckTimer();
   populate();
 }
 
 void TorrentsWidget::archiveSelected() {
   std::vector<track::torrent::Item> selected;
   for (int row = 0; row < table_->rowCount(); ++row) {
+    if (isGroupRow(table_->item(row, 0))) continue;
     if (table_->item(row, 0)->checkState() != Qt::Checked &&
         !table_->selectionModel()->isRowSelected(row, {})) {
       continue;
@@ -167,6 +184,7 @@ void TorrentsWidget::archiveSelected() {
 void TorrentsWidget::archiveVisible() {
   std::vector<track::torrent::Item> visible;
   for (int row = 0; row < table_->rowCount(); ++row) {
+    if (isGroupRow(table_->item(row, 0))) continue;
     const auto sourceRow = table_->item(row, 0)->data(Qt::UserRole).toInt();
     if (sourceRow >= 0 && sourceRow < static_cast<int>(items_.size())) {
       visible.push_back(items_.at(sourceRow));
@@ -178,6 +196,11 @@ void TorrentsWidget::archiveVisible() {
 }
 
 void TorrentsWidget::fetch() {
+  if (QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
+    fetchFromCache();
+    return;
+  }
+
   const auto source = taiga::settings.stringValue("rss.torrent.source",
                                                   "https://www.tokyotosho.info/rss.php?filter=1,11&zwnj=0");
   const QUrl url{source};
@@ -187,6 +210,7 @@ void TorrentsWidget::fetch() {
   }
 
   setBusy(true);
+  resetAutoCheckTimer();
   QNetworkRequest request{url};
   request.setHeaders(taiga::NetworkAccessManager::commonHeaders());
   request.setRawHeader("Accept", "application/rss+xml, */*");
@@ -195,36 +219,145 @@ void TorrentsWidget::fetch() {
   connect(reply, &QNetworkReply::finished, this, [this, reply]() {
     setBusy(false);
     if (reply->error() != QNetworkReply::NoError) {
-      statusLabel_->setText(reply->errorString());
+      const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+      statusLabel_->setText(status > 0 ? tr("%1 returned an error (%2): %3")
+                                             .arg(reply->url().host())
+                                             .arg(status)
+                                             .arg(reply->errorString())
+                                       : reply->errorString());
       return;
     }
 
-    items_ = track::torrent::parseFeed(reply->readAll());
+    const auto data = reply->readAll();
+    auto feed = track::torrent::parseFeedDocument(data);
+    if (feed.link.isEmpty()) feed.link = reply->url().toString();
+    track::torrent::saveFeedCache(feed, data);
+    items_ = std::move(feed.items);
     populate();
   });
 }
 
+void TorrentsWidget::discardSameAnime() {
+  const auto* selected = currentItem();
+  if (!selected) return;
+  for (auto& item : items_) {
+    if (selected->anime_id > 0 && item.anime_id == selected->anime_id) {
+      item.state = track::torrent::ItemState::Discarded;
+    }
+  }
+  populate();
+}
+
+void TorrentsWidget::discardSameGroup() {
+  const auto* selected = currentItem();
+  if (!selected || selected->group.isEmpty()) return;
+  for (auto& item : items_) {
+    if (item.group.compare(selected->group, Qt::CaseInsensitive) == 0) {
+      item.state = track::torrent::ItemState::Discarded;
+    }
+  }
+  populate();
+}
+
+void TorrentsWidget::fetchFromCache() {
+  const auto source = taiga::settings.stringValue("rss.torrent.source",
+                                                  "https://www.tokyotosho.info/rss.php?filter=1,11&zwnj=0");
+  const auto feed = track::torrent::loadFeedCache(source);
+  if (!feed) {
+    statusLabel_->setText(tr("No cached torrent feed found."));
+    return;
+  }
+  items_ = feed->items;
+  populate();
+  statusLabel_->setText(tr("Loaded cached torrent feed."));
+}
+
+void TorrentsWidget::handleItemChanged(QTableWidgetItem* item) {
+  if (populating_ || !item || item->column() != 0 || isGroupRow(item)) return;
+
+  const auto sourceRow = item->data(Qt::UserRole).toInt();
+  if (sourceRow < 0 || sourceRow >= static_cast<int>(items_.size())) return;
+
+  const bool checked = item->checkState() == Qt::Checked;
+  if (QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier) && lastCheckedRow_ > -1) {
+    const int from = std::min(lastCheckedRow_, item->row());
+    const int to = std::max(lastCheckedRow_, item->row());
+    const auto category = items_.at(sourceRow).torrent_category;
+    populating_ = true;
+    for (int row = from; row <= to; ++row) {
+      auto* rowItem = table_->item(row, 0);
+      if (isGroupRow(rowItem)) continue;
+      const auto rowSource = rowItem->data(Qt::UserRole).toInt();
+      if (rowSource < 0 || rowSource >= static_cast<int>(items_.size())) continue;
+      if (items_.at(rowSource).torrent_category != category) continue;
+      rowItem->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
+      items_[rowSource].state =
+          checked ? track::torrent::ItemState::Selected : track::torrent::ItemState::Discarded;
+    }
+    populating_ = false;
+  }
+
+  items_[sourceRow].state =
+      checked ? track::torrent::ItemState::Selected : track::torrent::ItemState::Discarded;
+  if (checked) lastCheckedRow_ = item->row();
+  const auto count = track::torrent::selectedItems(items_).size();
+  statusLabel_->setText(count == 1 ? tr("Marked 1 torrent.")
+                                   : tr("Marked %1 torrents.").arg(count));
+}
+
 void TorrentsWidget::openSelected() const {
-  for (int row = 0; row < table_->rowCount(); ++row) {
-    if (table_->item(row, 0)->checkState() != Qt::Checked &&
-        !table_->selectionModel()->isRowSelected(row, {})) {
-      continue;
-    }
-    const auto sourceRow = table_->item(row, 0)->data(Qt::UserRole).toInt();
-    if (sourceRow >= 0 && sourceRow < static_cast<int>(items_.size())) {
-      const auto link = items_.at(sourceRow).link;
-      if (!link.isEmpty()) QDesktopServices::openUrl(QUrl{link});
-    }
+  const auto queue = track::torrent::sortedDownloadQueue(items_);
+  if (!queue.isEmpty()) {
+    for (const auto& item : queue) startDownload(item);
+    return;
+  }
+
+  const auto selected = table_->selectionModel()->selectedRows();
+  for (const auto& index : selected) {
+    const auto sourceRow = table_->item(index.row(), 0)->data(Qt::UserRole).toInt();
+    if (sourceRow >= 0 && sourceRow < static_cast<int>(items_.size())) startDownload(items_.at(sourceRow));
   }
 }
 
+void TorrentsWidget::preferSameGroup() {
+  const auto* selected = currentItem();
+  if (!selected || selected->group.isEmpty()) return;
+  for (auto& item : items_) {
+    if (selected->anime_id > 0 && item.anime_id != selected->anime_id) continue;
+    if (item.group.compare(selected->group, Qt::CaseInsensitive) == 0) {
+      item.state = track::torrent::ItemState::Preferred;
+    } else if (selected->anime_id > 0) {
+      item.state = track::torrent::ItemState::Discarded;
+    }
+  }
+  populate();
+}
+
 void TorrentsWidget::populate() {
+  populating_ = true;
   const auto filter = filterEdit_ ? filterEdit_->text().trimmed() : QString{};
   table_->setRowCount(0);
+  lastCheckedRow_ = -1;
+  std::optional<track::torrent::Category> currentCategory;
 
   for (int i = 0; i < static_cast<int>(items_.size()); ++i) {
     const auto& item = items_.at(i);
+    if (track::torrent::isHidden(item.state)) continue;
     if (!filter.isEmpty() && !item.title.contains(filter, Qt::CaseInsensitive)) continue;
+
+    if (!currentCategory || *currentCategory != item.torrent_category) {
+      currentCategory = item.torrent_category;
+      const auto groupRow = table_->rowCount();
+      table_->insertRow(groupRow);
+      auto* groupItem = new QTableWidgetItem(track::torrent::categoryText(item.torrent_category));
+      groupItem->setData(Qt::UserRole, -1);
+      auto font = groupItem->font();
+      font.setBold(true);
+      groupItem->setFont(font);
+      groupItem->setFlags(Qt::NoItemFlags);
+      table_->setItem(groupRow, 0, groupItem);
+      table_->setSpan(groupRow, 0, 1, table_->columnCount());
+    }
 
     const auto row = table_->rowCount();
     table_->insertRow(row);
@@ -250,11 +383,23 @@ void TorrentsWidget::populate() {
   }
 
   statusLabel_->setText(tr("%1 torrent(s), %2 archived")
-                            .arg(table_->rowCount())
+                            .arg(items_.size())
                             .arg(track::torrent::archiveCount()));
   if (table_->rowCount() == 0) {
     statusLabel_->setText(tr("No new torrents found."));
   }
+  populating_ = false;
+}
+
+void TorrentsWidget::resetAutoCheckTimer() {
+  if (!autoCheckTimer_) return;
+  if (!taiga::settings.boolValue("rss.torrent.autoCheck", true)) {
+    autoCheckTimer_->stop();
+    if (refreshAction_) refreshAction_->setText(tr("Check new torrents"));
+    return;
+  }
+  autoCheckRemaining_ = std::max(1, taiga::settings.intValue("rss.torrent.checkInterval", 60)) * 60;
+  autoCheckTimer_->start(1000);
 }
 
 void TorrentsWidget::setBusy(bool busy) {
@@ -267,9 +412,24 @@ void TorrentsWidget::showSettings() {
 }
 
 void TorrentsWidget::showContextMenu(const QPoint& position) {
+  const auto* item = table_->item(table_->currentRow(), 0);
+  if (!item || isGroupRow(item)) return;
+
   QMenu menu(this);
   menu.addAction(QIcon(":/icons/classic/16px/navigation-270-button.png"),
                  tr("Download marked torrents"), this, &TorrentsWidget::openSelected);
+  menu.addAction(QIcon(":/icons/classic/16px/document-attribute.png"), tr("Torrent info"), this,
+                 &TorrentsWidget::openTorrentInfo);
+  menu.addAction(QIcon(":/icons/classic/16px/magnifier-left.png"), tr("More torrents"), this,
+                 &TorrentsWidget::openMoreTorrents);
+  menu.addAction(QIcon(":/icons/classic/16px/magnifier-left.png"), tr("Search service"), this,
+                 &TorrentsWidget::searchService);
+  menu.addSeparator();
+  auto* filters = menu.addMenu(tr("Filters"));
+  filters->addAction(tr("Prefer this fansub group"), this, &TorrentsWidget::preferSameGroup);
+  filters->addAction(tr("Discard this anime"), this, &TorrentsWidget::discardSameAnime);
+  filters->addAction(tr("Discard this fansub group"), this, &TorrentsWidget::discardSameGroup);
+  menu.addSeparator();
   menu.addAction(QIcon(":/icons/classic/16px/cross.png"), tr("Discard marked torrents"), this,
                  &TorrentsWidget::archiveSelected);
   menu.addSeparator();
@@ -278,6 +438,91 @@ void TorrentsWidget::showContextMenu(const QPoint& position) {
   menu.addAction(QIcon(":/icons/classic/16px/gear.png"), tr("Settings"), this,
                  &TorrentsWidget::showSettings);
   menu.exec(table_->viewport()->mapToGlobal(position));
+}
+
+void TorrentsWidget::openTorrentInfo() const {
+  const auto row = table_->currentRow();
+  if (row < 0 || isGroupRow(table_->item(row, 0))) return;
+  const auto sourceRow = table_->item(row, 0)->data(Qt::UserRole).toInt();
+  if (sourceRow < 0 || sourceRow >= static_cast<int>(items_.size())) return;
+  const auto& item = items_.at(sourceRow);
+  const auto url = !item.info_link.isEmpty() ? item.info_link : item.link;
+  if (!url.isEmpty()) QDesktopServices::openUrl(QUrl{url});
+}
+
+void TorrentsWidget::openMoreTorrents() const {
+  const auto row = table_->currentRow();
+  if (row < 0 || isGroupRow(table_->item(row, 0))) return;
+  const auto sourceRow = table_->item(row, 0)->data(Qt::UserRole).toInt();
+  if (sourceRow < 0 || sourceRow >= static_cast<int>(items_.size())) return;
+  const auto& item = items_.at(sourceRow);
+  auto urlTemplate = taiga::settings.stringValue("rss.torrent.search",
+                                                 "https://nyaa.si/?page=rss&c=1_2&f=0&q=%title%");
+  urlTemplate.replace("%title%", QUrl::toPercentEncoding(item.title));
+  QDesktopServices::openUrl(QUrl{urlTemplate});
+}
+
+void TorrentsWidget::searchService() const {
+  const auto row = table_->currentRow();
+  if (row < 0 || isGroupRow(table_->item(row, 0))) return;
+  const auto sourceRow = table_->item(row, 0)->data(Qt::UserRole).toInt();
+  if (sourceRow < 0 || sourceRow >= static_cast<int>(items_.size())) return;
+  mainWindow()->navigateTo(MainWindowPage::Search);
+  mainWindow()->searchBox()->setText(items_.at(sourceRow).title);
+}
+
+void TorrentsWidget::startDownload(const track::torrent::Item& item) const {
+  const auto plan = track::torrent::downloadPlan(item);
+  if (!plan) return;
+
+  if (plan->magnet) {
+    QDesktopServices::openUrl(plan->url);
+    track::torrent::archiveItems({item});
+    return;
+  }
+
+  QNetworkRequest request{plan->url};
+  request.setHeaders(taiga::NetworkAccessManager::commonHeaders());
+  request.setRawHeader("Accept", "application/x-bittorrent, */*");
+  request.setTransferTimeout(std::chrono::seconds{30});
+  auto* reply = taiga::network()->get(request);
+  const auto path = plan->save_path;
+  connect(reply, &QNetworkReply::finished, this, [reply, path, item]() {
+    if (reply->error() != QNetworkReply::NoError) return;
+    QFileInfo info{path};
+    QDir{}.mkpath(info.absolutePath());
+    QFile file{path};
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
+    file.write(reply->readAll());
+    file.close();
+    track::torrent::archiveItems({item});
+    if (taiga::settings.boolValue("rss.torrent.openApp", true)) {
+      QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+    }
+  });
+}
+
+void TorrentsWidget::tickAutoCheck() {
+  if (autoCheckRemaining_ <= 0) {
+    fetch();
+    return;
+  }
+  --autoCheckRemaining_;
+  if (refreshAction_) {
+    const auto minutes = autoCheckRemaining_ / 60;
+    const auto seconds = autoCheckRemaining_ % 60;
+    refreshAction_->setText(tr("Check new torrents (%1:%2)")
+                                .arg(minutes, 2, 10, QLatin1Char('0'))
+                                .arg(seconds, 2, 10, QLatin1Char('0')));
+  }
+}
+
+const track::torrent::Item* TorrentsWidget::currentItem() const {
+  const auto row = table_->currentRow();
+  if (row < 0 || isGroupRow(table_->item(row, 0))) return nullptr;
+  const auto sourceRow = table_->item(row, 0)->data(Qt::UserRole).toInt();
+  if (sourceRow < 0 || sourceRow >= static_cast<int>(items_.size())) return nullptr;
+  return &items_.at(sourceRow);
 }
 
 }  // namespace gui

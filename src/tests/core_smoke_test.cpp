@@ -18,6 +18,7 @@
 #include "sync/anilist_parsers.hpp"
 #include "sync/kitsu_parsers.hpp"
 #include "sync/myanimelist_parsers.hpp"
+#include "taiga/settings.hpp"
 #include "taiga/version.hpp"
 #include "track/torrent_feed.hpp"
 #include "track/recognition_normalize.hpp"
@@ -130,14 +131,76 @@ int main(int argc, char* argv[]) {
     </channel></rss>
   )");
   require(feed.items.size() == 1, "RSS parser did not read torrent item");
+  taiga::settings.setBoolValue("rss.torrent.filters.enabled", true);
+  taiga::settings.setStringValue("rss.torrent.filters.itemsJson", {});
   const auto torrents = track::torrent::parseFeed(R"(
     <rss><channel><title>Nyaa</title>
       <item><title>[Group] Example Anime - 01 [1080p]</title><link>magnet:?xt=urn:btih:test</link></item>
     </channel></rss>
   )");
   require(torrents.size() == 1, "Torrent feed parser rejected valid RSS");
+  require(torrents.front().title == "Example Anime", "Torrent recognition title extraction changed");
+  require(torrents.front().episode == "01", "Torrent recognition episode extraction changed");
+  require(torrents.front().group == "Group", "Torrent recognition group extraction changed");
+  require(torrents.front().video == "1080p", "Torrent recognition resolution extraction changed");
+  require(torrents.front().torrent_category == track::torrent::Category::Anime,
+          "Torrent category detection changed");
   require(torrents.front().state == track::torrent::ItemState::Preferred,
           "Torrent default resolution preference changed");
+
+  const auto nyaaFeed = track::torrent::parseFeedDocument(R"(
+    <rss xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel>
+      <title>Nyaa</title>
+      <link>https://nyaa.si/?page=rss&amp;c=1_2&amp;f=0</link>
+      <item>
+        <title>[Subs] Another Show - 02 [720p]</title>
+        <link>https://nyaa.si/download/123.torrent</link>
+        <guid>https://nyaa.si/view/123</guid>
+        <pubDate>Tue, 07 Jul 2026 12:00:00 GMT</pubDate>
+        <nyaa:size>2.0 GiB</nyaa:size>
+        <nyaa:seeders>11</nyaa:seeders>
+        <nyaa:leechers>2</nyaa:leechers>
+        <nyaa:downloads>99</nyaa:downloads>
+      </item>
+    </channel></rss>
+  )");
+  require(nyaaFeed.items.size() == 1, "Nyaa torrent feed parser rejected valid RSS");
+  require(nyaaFeed.items.front().size == "2.0 GiB", "Nyaa torrent size parsing changed");
+  require(nyaaFeed.items.front().seeders == "11", "Nyaa torrent seed parsing changed");
+  require(nyaaFeed.items.front().leechers == "2", "Nyaa torrent leech parsing changed");
+  require(nyaaFeed.items.front().downloads == "99", "Nyaa torrent download parsing changed");
+  require(nyaaFeed.items.front().info_link == "https://nyaa.si/view/123",
+          "Nyaa torrent info link parsing changed");
+
+  auto queueItems = std::vector<track::torrent::Item>{
+      {.anime_id = 7,
+       .title = "Queue Show",
+       .link = "https://example.test/02.torrent",
+       .episode = "02",
+       .filename = "Queue Show - 02",
+       .state = track::torrent::ItemState::Selected},
+      {.anime_id = 7,
+       .title = "Queue Show",
+       .link = "https://example.test/01.torrent",
+       .episode = "01",
+       .filename = "Queue Show - 01",
+       .state = track::torrent::ItemState::Selected},
+  };
+  taiga::settings.setStringValue("rss.torrent.downloadSortBy", "episode_number");
+  taiga::settings.setStringValue("rss.torrent.downloadSortOrder", "ascending");
+  const auto queue = track::torrent::sortedDownloadQueue(queueItems);
+  require(queue.size() == 2, "Torrent download queue missed selected items");
+  require(queue.front().episode == "01", "Torrent download queue episode sort changed");
+
+  taiga::settings.setBoolValue("rss.torrent.useMagnet", true);
+  auto planItem = torrents.front();
+  planItem.link = "https://example.test/file.torrent";
+  planItem.magnet_link = "magnet:?xt=urn:btih:test";
+  const auto magnetPlan = track::torrent::downloadPlan(planItem);
+  require(magnetPlan.has_value(), "Torrent magnet plan was not created");
+  require(magnetPlan->magnet, "Torrent magnet preference was ignored");
+  require(magnetPlan->url.scheme() == "magnet", "Torrent magnet URL changed");
+  taiga::settings.setBoolValue("rss.torrent.useMagnet", false);
 
   Anime unknownEpisodeAnime;
   unknownEpisodeAnime.episode_count = anime::kUnknownEpisodeCount;

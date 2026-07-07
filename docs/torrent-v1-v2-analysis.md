@@ -117,8 +117,8 @@ Already present:
 - Search field.
 - Checkable rows.
 - Status icons by matched anime title.
-- Basic feed fetch.
-- Basic RSS parser.
+- Feed fetch with v1-compatible timeout and RSS request headers.
+- RSS parser plus source-specific metadata extraction.
 - Basic archive.
 - Basic named filters.
 - Basic right-click menu.
@@ -129,6 +129,21 @@ Recently aligned:
 - Shared network timeout is now 30 seconds, matching v1.
 - Torrent requests now send the v1 RSS `Accept` header and Taiga user-agent.
 - Settings now expose the v1 feed-source and search-source option lists.
+- Ctrl-refresh reloads the cached feed XML for the active source.
+- Feed XML is saved after successful fetches.
+- Torrent rows are grouped into `Anime`, `Batch`, and `Other`.
+- Anitomy recognition now extracts anime title, episode, release group, video
+  resolution, and matched anime ID for status icons.
+- Filters evaluate the preserved filename/details so title normalization does
+  not hide resolution or episode tokens.
+- Shift-click checkbox range marking works within the same torrent group.
+- Download queue sorting follows the configured episode/date ordering.
+- Magnet links and `.torrent` downloads are both supported.
+- The context menu includes torrent info, more torrents, service search,
+  prefer fansub group, discard anime/group, download, refresh, and settings.
+- Automatic torrent checking now runs from the Torrents page and shows a
+  countdown in the toolbar action text.
+- Enter and numpad Enter trigger the same download/open path as double-click.
 
 ## Remaining translation gaps
 
@@ -137,22 +152,16 @@ model.
 
 Needed v2 pieces:
 
-- A `TorrentAggregator` core object equivalent to v1 `track::aggregator`.
-- Cached feed XML reload and Ctrl-refresh behavior.
-- Per-source parser parity with `feed_source.cpp`.
-- Recognition/Anitomy pass over torrent titles, not regex-only extraction.
-- Full feed-filter model with actions, match modes, operators, options, and
-  import/export.
-- Grouped view model for `Anime`, `Batch`, and `Other`.
-- Checkbox range behavior.
-- Correct state colors and inactive/hidden handling.
-- Full context menu parity.
-- Queue-aware download behavior.
-- Magnet-link handling.
-- `.torrent` file download, save, archive, and launch configured client.
-- Automatic checking timer with toolbar countdown.
-- Detailed status-bar transfer progress.
-- Better server-error reporting, especially Cloudflare 522/503 cases.
+- A fuller `TorrentAggregator` core object equivalent to v1 `track::aggregator`
+  would still make the code easier to reason about; the current functionality is
+  split between `track::torrent` and `TorrentsWidget`.
+- Full feed-filter condition/action/operator parity with v1, beyond the current
+  named/default filters and JSON-backed settings UI.
+- Column-specific sort comparators for episode ranges, file size, S/L/D counts,
+  and RFC822 dates.
+- Custom client path/app-mode launch verification on Linux.
+- Detailed transfer progress in the status bar.
+- More precise Cloudflare/DDoS-style error messaging for 522/503 responses.
 
 ## Practical note
 
