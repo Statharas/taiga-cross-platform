@@ -154,6 +154,9 @@ int main(int argc, char* argv[]) {
   exampleEntry.anime_id = 9001;
   exampleEntry.status = anime::list::Status::Watching;
   anime::db.updateEntry(exampleEntry);
+  anime::db.deleteEntry(exampleAnime.id);
+  require(anime::db.entry(exampleAnime.id) == nullptr, "Anime DB list entry delete failed");
+  anime::db.updateEntry(exampleEntry);
   const auto torrents = track::torrent::parseFeed(R"(
     <rss><channel><title>Nyaa</title>
       <item><title>[Group] Example Anime - 01 [1080p]</title><link>magnet:?xt=urn:btih:test</link></item>
@@ -195,6 +198,20 @@ int main(int argc, char* argv[]) {
   )");
   require(fansubTorrents.front().state == track::torrent::ItemState::DiscardedInactive,
           "Preferred fansub filters must not select anime outside the user's list");
+
+  taiga::settings.setStringValue("rss.torrent.filters.itemsJson", R"([
+    {"name":"Select fansub","enabled":true,"action":"select","field":"group","match":"equals","value":"Group"},
+    {"name":"Prefer 1080p","enabled":true,"action":"prefer","field":"video","match":"contains","value":"1080p"},
+    {"name":"Discard raws","enabled":true,"action":"discard","field":"filename","match":"regex","value":"RAW"}
+  ])");
+  const auto structuredTorrents = track::torrent::parseFeed(R"(
+    <rss><channel><title>Nyaa</title>
+      <item><title>[Group] Example Anime - 02 [1080p]</title><link>magnet:?xt=urn:btih:structured</link></item>
+    </channel></rss>
+  )");
+  require(structuredTorrents.front().state == track::torrent::ItemState::Preferred,
+          "Structured torrent filters should select and prefer matching rows");
+
   taiga::settings.setStringValue("rss.torrent.filters.itemsJson", {});
 
   const auto libraryPath = dataDir.filePath("library");

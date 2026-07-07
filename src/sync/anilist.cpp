@@ -291,13 +291,13 @@ void Service::deleteListEntry(const int id) {
       {"variables", QJsonObject{{"id", static_cast<qint64>(listEntry->id)}}},
   }};
 
-  const auto callback = [this](QRestReply& reply) {
+  const auto callback = [this, id](QRestReply& reply) {
     if (isError(reply) && reply.httpStatus() != 404) {
       handleError(reply);
       return;
     }
 
-    // @TODO: anime::db.deleteEntry(id);
+    anime::db.deleteEntry(id);
   };
 
   manager_.post(api_.createRequest(), data, this, callback);

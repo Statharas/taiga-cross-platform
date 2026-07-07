@@ -20,6 +20,7 @@
 
 #include <QHeaderView>
 #include <QKeyEvent>
+#include <QMenu>
 
 #include "gui/common/anime_list_item_delegate.hpp"
 #include "gui/common/anime_list_view_base.hpp"
@@ -62,6 +63,21 @@ ListView::ListView(QWidget* parent, AnimeListModel* model, AnimeListProxyModel* 
   header()->resizeSection(AnimeListModel::COLUMN_AVERAGE, 75);
   header()->resizeSection(AnimeListModel::COLUMN_TYPE, 75);
   header()->resizeSection(AnimeListModel::COLUMN_LAST_UPDATED, 110);
+  header()->setContextMenuPolicy(Qt::CustomContextMenu);
+  connect(header(), &QWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
+    QMenu menu(this);
+    for (int column = 0; column < AnimeListModel::NUM_COLUMNS; ++column) {
+      auto text = this->model()->headerData(column, Qt::Horizontal, Qt::DisplayRole).toString();
+      if (text.isEmpty()) text = tr("Status");
+      auto* action = menu.addAction(text, this, [this, column]() {
+        setColumnHidden(column, !isColumnHidden(column));
+      });
+      action->setCheckable(true);
+      action->setChecked(!isColumnHidden(column));
+      action->setEnabled(column != AnimeListModel::COLUMN_TITLE);
+    }
+    menu.exec(header()->mapToGlobal(pos));
+  });
 
   // `sortByColumn` needs to be called before `setSortingEnabled`.
   // Otherwise the sort column is set to `0`.

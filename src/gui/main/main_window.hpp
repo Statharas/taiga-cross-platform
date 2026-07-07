@@ -75,6 +75,7 @@ public slots:
 
 private slots:
   void about();
+  void checkForUpdates();
   void donate() const;
   void exportListAsMarkdown();
   void exportListAsXml();
@@ -98,6 +99,10 @@ private:
   void initStatusbar();
   void initToolbar();
   void initTrayIcon();
+  void goBack();
+  void goForward();
+  void rememberPage(MainWindowPage page);
+  void updateHistoryActions();
   void updateSearchBoxForPage(MainWindowPage page);
   void exportList(const QString& extension, bool (*exportFunction)(const std::string&));
 
@@ -111,6 +116,9 @@ private:
   NowPlayingPageWidget* m_nowPlayingPageWidget = nullptr;
   QLineEdit* m_searchBox = nullptr;
   QMetaObject::Connection m_pageSearchConnection;
+  QList<MainWindowPage> m_pageHistory;
+  int m_pageHistoryIndex = -1;
+  bool m_restoringPageHistory = false;
   SearchWidget* m_searchWidget = nullptr;
   SeasonsWidget* m_seasonsWidget = nullptr;
   StatisticsWidget* m_statisticsWidget = nullptr;

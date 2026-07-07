@@ -36,7 +36,7 @@ source of truth is the original code under `src/v1`, especially:
 | Services > Synchronize | v1 menu command | Implemented through `actionSynchronize`. |
 | Services > Export > Markdown/XML | `ui::ExecuteCommand(ExportAsMarkdown/ExportAsMalXml)` | Implemented through `MainWindow::exportListAsMarkdown/exportListAsXml`. |
 | Library > Add folder | `ui::ExecuteCommand(AddFolder)` | Partially implemented: opens a folder picker; persistence/watch-folder refresh still needs a backend pass. |
-| Library > Scan available episodes | `ui::ExecuteCommand(ScanEpisodesAll)` | Stubbed with status text until the Linux scanner command path is finished. |
+| Library > Scan available episodes | `ui::ExecuteCommand(ScanEpisodesAll)` | Implemented as a Linux scanner pass over configured library folders; persistent per-episode availability still needs a data model. |
 | Library > Play next episode | `track::PlayNextEpisodeOfLastWatchedAnime()` | Implemented as `track::playNextEpisodeOfLastWatchedAnime()`. |
 | Library > Play random anime | `track::PlayRandomAnime()` | Implemented as `track::playRandomAnime()`. |
 | Tools > Enable detection | `ToggleRecognition()` | Implemented as a persisted toggle plus status text. Full media-recognition side effects need a backend pass. |
@@ -59,7 +59,7 @@ source of truth is the original code under `src/v1`, especially:
 | Settings account buttons | MAL/AniList authorize, Kitsu login | Implemented. |
 | Settings library buttons | Add/remove folder, folder double-click | Implemented for UI list; full persistence/watch-folder integration needs backend verification. |
 | Settings sharing format buttons | Edit format string | Implemented. |
-| Settings torrent filter buttons | Add/remove/reorder/import/export/reset | Implemented for the settings UI model; full filter editor condition parity is still a backlog item. |
+| Settings torrent filter buttons | Add/edit/remove/reorder/import/export/reset | Implemented for the settings UI model with structured single-condition rules; full multi-condition parity is still a backlog item. |
 | Settings advanced/cache buttons | Refresh cache, clear selected cache data | Implemented at UI level; clear behavior depends on current cache backends. |
 
 ## Screen map

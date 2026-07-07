@@ -309,6 +309,49 @@ void applyNamedFilter(Item& item, const QString& name) {
   }
 }
 
+QString filterFieldValue(const Item& item, const QString& field) {
+  const auto lower = field.toCaseFolded();
+  if (lower == "title") return item.title;
+  if (lower == "filename") return item.filename;
+  if (lower == "description") return item.description;
+  if (lower == "group") return item.group;
+  if (lower == "video") return item.video;
+  if (lower == "category") return categoryText(item.torrent_category);
+  if (lower == "source") return item.source;
+  return QStringList{item.title, item.filename, item.description, item.group, item.video,
+                     item.category, item.source}
+      .join(" ");
+}
+
+bool structuredFilterMatches(const Item& item, const QJsonObject& filter) {
+  const auto value = filter.value("value").toString().trimmed();
+  if (value.isEmpty()) return false;
+
+  const auto candidate = filterFieldValue(item, filter.value("field").toString("any"));
+  const auto match = filter.value("match").toString("contains").toCaseFolded();
+  if (match == "equals") return candidate.compare(value, Qt::CaseInsensitive) == 0;
+  if (match == "regex") {
+    return QRegularExpression{value, QRegularExpression::CaseInsensitiveOption}.match(candidate).hasMatch();
+  }
+  return candidate.contains(value, Qt::CaseInsensitive);
+}
+
+void applyStructuredFilter(Item& item, const QJsonObject& filter) {
+  if (!structuredFilterMatches(item, filter)) return;
+
+  const auto name = filter.value("name").toString("Custom filter");
+  const auto action = filter.value("action").toString("select").toCaseFolded();
+  if (action == "prefer") {
+    if (item.state == ItemState::Selected) mark(item, ItemState::Preferred, name);
+  } else if (action == "discard") {
+    mark(item, ItemState::Discarded, name);
+  } else if (action == "discard_inactive") {
+    mark(item, ItemState::DiscardedInactive, name);
+  } else {
+    mark(item, ItemState::Selected, name);
+  }
+}
+
 int statePriority(ItemState state) {
   switch (state) {
     case ItemState::Selected:
@@ -442,7 +485,11 @@ void applyFilters(std::vector<Item>& items) {
     for (const auto& value : configuredFilterSettings()) {
       const auto object = value.toObject();
       if (!object.value("enabled").toBool(true)) continue;
-      applyNamedFilter(item, object.value("name").toString());
+      if (object.contains("action") || object.contains("field") || object.contains("value")) {
+        applyStructuredFilter(item, object);
+      } else {
+        applyNamedFilter(item, object.value("name").toString());
+      }
     }
   }
 }

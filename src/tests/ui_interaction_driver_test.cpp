@@ -1,6 +1,10 @@
 #include <QLabel>
 #include <QLineEdit>
+#include <QAction>
 #include <QStatusBar>
+#include <QStackedWidget>
+#include <QTreeView>
+#include <QHeaderView>
 #include <QTest>
 #include <QTemporaryDir>
 
@@ -53,7 +57,29 @@ int main(int argc, char* argv[]) {
 
   auto* searchBox = window.searchBox();
   require(searchBox != nullptr, "Main search box missing");
+  auto* stack = window.findChild<QStackedWidget*>();
+  auto* backAction = window.findChild<QAction*>("actionBack");
+  auto* forwardAction = window.findChild<QAction*>("actionForward");
+  require(stack != nullptr && backAction != nullptr && forwardAction != nullptr,
+          "Page history controls missing");
 
+  window.navigateTo(gui::MainWindowPage::Search);
+  app.processEvents();
+  window.navigateTo(gui::MainWindowPage::List);
+  app.processEvents();
+  require(backAction->isEnabled(), "Back action did not enable after navigation");
+  backAction->trigger();
+  app.processEvents();
+  require(stack->currentIndex() == static_cast<int>(gui::MainWindowPage::Search),
+          "Back action did not restore previous page");
+  require(forwardAction->isEnabled(), "Forward action did not enable after going back");
+  forwardAction->trigger();
+  app.processEvents();
+  require(stack->currentIndex() == static_cast<int>(gui::MainWindowPage::List),
+          "Forward action did not restore next page");
+  auto* animeList = window.findChild<QTreeView*>("animeList");
+  require(animeList != nullptr && animeList->header()->contextMenuPolicy() == Qt::CustomContextMenu,
+          "Anime list header should expose the v1 column context menu");
   window.navigateTo(gui::MainWindowPage::Search);
   app.processEvents();
   require(searchBox->placeholderText() == "Search MyAnimeList for anime",

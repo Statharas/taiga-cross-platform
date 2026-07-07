@@ -40,7 +40,7 @@ Primary v1 sources:
 | Sidebar navigation | Now Playing, Anime List, History, Statistics, Search, Seasons, Torrents. | Done | `NavigationWidget`, parity test. |
 | Page-specific refresh | Refresh dispatches by active page. | Partial | Sync/list and Seasons/Torrents are handled; History/Stats/Search refresh commands need explicit parity checks. |
 | Shared search box | Mode changes by page: service search, feed search, list filter, or none. Enter submits in service/feed mode. | Done | `MainWindow::updateSearchBoxForPage`, `taiga-ui-interaction-driver-tests`. |
-| Back/forward navigation | V1 tracks page history. | Missing | V2 has actions/icons but no complete page-history behavior. |
+| Back/forward navigation | V1 tracks page history. | Done | V2 page history is wired to Back/Forward actions and covered by the interaction driver. |
 | Status bar | Shows command progress, selection summaries, update timers, feed errors. | Partial | Present, but torrent transfer progress and some command statuses are simpler. |
 | Tray integration | Show/hide, tray menu, notification click routes. | Partial | Tray exists; notification click routes and taskbar-specific behavior are not all ported. |
 | Single-instance behavior | Existing instance is activated. | Partial | Lock exists; activation is TODO. |
@@ -67,7 +67,7 @@ Primary v1 sources:
 | Card/details view | V1 list can use alternate list/card-like views. | Partial | v2 has list/card delegates; view switch persistence needs more tests. |
 | Filtering | Shared search filters list and can submit service search. | Done | `ListViewBase`, driver test covers submit mode. |
 | Sorting | Header sorting with numeric/date-aware behavior. | Partial | Basic sorting exists; exact v1 comparators need fixtures. |
-| Header context menu | Column visibility/order and list options. | Missing | Dedicated parity work needed. |
+| Header context menu | Column visibility/order and list options. | Partial | Column visibility context menu is implemented; persistent order/list-option parity remains. |
 | Score cell menu | Right-click score cell opens score-specific menu. | Missing | Shared media menu does not replace cell-specific popup. |
 | Double/middle click actions | Settings determine action: none/edit/folder/play/info/service page. | Partial | Implemented; needs driver tests for all configured values. |
 | Keyboard actions | Enter default action, Delete remove, Ctrl+A select all. | Partial | Delete/Enter paths exist; broader shortcuts need driver tests. |
@@ -96,7 +96,7 @@ Primary v1 sources:
 
 | Requirement | V1 behavior | V2 status | Evidence / action |
 | --- | --- | --- | --- |
-| Search submit | Enter in shared search runs active service title search. | Partial | AniList implemented; MAL/Kitsu currently report not implemented. |
+| Search submit | Enter in shared search runs active service title search. | Done | AniList, MyAnimeList, and Kitsu search routes are wired; live-provider fixtures remain useful. |
 | Result list | Service results are added to DB and shown in Search page. | Partial | AniList updates DB; Search page filtering/result refresh needs a live or mocked test. |
 | Filters | Year, season, type, status. | Done | Year list is descending. |
 | Sort/view controls | Sort and view controls available. | Partial | UI exists; persistence/actions need tests. |
@@ -126,7 +126,7 @@ Primary v1 sources:
 | Feed cache | Saves successful feed per source. | Done | `track::torrent`. |
 | Source parsers | TokyoToshokan, Nyaa, AnimeTosho, AniDex, Minglong, SubsPlease. | Partial | Implemented core cases; needs real-feed fixtures. |
 | Recognition | Anitomy recognition extracts title, episode, group, resolution, anime ID. | Done | `taiga-core-tests`. |
-| Filters | Select/prefer/discard rules, hidden/inactive/archive states, full condition editor. | Partial | Named/default filters exist; full v1 condition/action model is missing. |
+| Filters | Select/prefer/discard rules, hidden/inactive/archive states, full condition editor. | Partial | Named/default filters and a structured action-field-condition-value editor exist; multi-condition/operator parity remains. |
 | Groups/columns | Anime/Batch/Other groups and all v1 columns. | Done | `TorrentsWidget`, parity tests. |
 | Checkbox range | Shift-click range in same group. | Done | Needs interaction test. |
 | Context menu | Download, anime info, torrent info, discard, discard anime, prefer group, more torrents, search service. | Partial | Most actions exist; anime-info-specific action and exact menu order need refinement. |
@@ -142,7 +142,7 @@ Primary v1 sources:
 | Application pages | List actions/appearance/progress, startup/tray/links. | Partial | UI exists; startup/tray platform behaviors need Linux-specific implementation. |
 | Recognition page | Media players, streaming media, ignored strings, interval, folders. | Partial | UI exists; Anisthesia bridge still evolving. |
 | Sharing pages | Discord, HTTP POST, mIRC/DDE settings and format editors. | Partial/Deferred | HTTP/Discord need runtime tests; mIRC DDE is Windows-specific and needs cross-platform strategy. |
-| Torrent pages | Discovery, downloads, filters. | Partial | UI exists; full filter editor and client launch parity remain. |
+| Torrent pages | Discovery, downloads, filters. | Partial | UI exists; structured filter editor exists; custom client launch and full v1 multi-condition parity remain. |
 | Advanced pages | Advanced key/value settings and cache clear. | Partial | UI exists; clear paths need temp-profile tests. |
 
 ## Auxiliary dialogs
@@ -150,8 +150,8 @@ Primary v1 sources:
 | Requirement | V1 behavior | V2 status | Evidence / action |
 | --- | --- | --- | --- |
 | Anime information / media dialog | Details/list editing/external links/poster. | Partial | `MediaDialog` exists; field-by-field v1 comparison still needed. |
-| Feed filter dialog | Full filter editor with conditions/actions/operators. | Missing | Current settings UI only covers a simplified filter list. |
-| Feed condition dialog | Add/edit a single torrent filter condition. | Missing | Required for full torrent filter parity. |
+| Feed filter dialog | Full filter editor with conditions/actions/operators. | Partial | Current settings UI supports add/edit for single structured condition rows. |
+| Feed condition dialog | Add/edit a single torrent filter condition. | Partial | Action, field, match operator, and value are editable; every v1 operator/action still needs direct mapping. |
 | Format string dialog | Edit HTTP/mIRC/notification templates. | Partial | Format editor UI exists; variable preview/testing needs parity check. |
-| Update dialog | Check/update workflow. | Missing | Update actions are present but update flow is disabled/incomplete. |
+| Update dialog | Check/update workflow. | Partial | Cross-platform release-page check is available; apply/download workflow is not ported. |
 | About dialog | About/support/donate links. | Done | `AboutDialog`. |

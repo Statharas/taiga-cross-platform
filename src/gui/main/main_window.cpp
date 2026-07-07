@@ -43,6 +43,7 @@
 #include "taiga/application.hpp"
 #include "taiga/session.hpp"
 #include "taiga/settings.hpp"
+#include "taiga/version.hpp"
 #include "track/scanner.hpp"
 #include "track/play.hpp"
 #include "ui_main_window.h"
@@ -126,7 +127,10 @@ void MainWindow::initActions() {
       taiga::settings.boolValue("program.option.enableSync", true));
 
   connect(ui_->actionAddNewFolder, &QAction::triggered, this, &MainWindow::addNewFolder);
+  connect(ui_->actionBack, &QAction::triggered, this, &MainWindow::goBack);
+  connect(ui_->actionForward, &QAction::triggered, this, &MainWindow::goForward);
   connect(ui_->actionExit, &QAction::triggered, this, &QApplication::quit, Qt::QueuedConnection);
+  connect(ui_->actionCheckForUpdates, &QAction::triggered, this, &MainWindow::checkForUpdates);
   connect(ui_->actionSettings, &QAction::triggered, this, [this]() { SettingsDialog::show(this); });
   connect(ui_->actionAbout, &QAction::triggered, this, &MainWindow::about);
   connect(ui_->actionDonate, &QAction::triggered, this, &MainWindow::donate);
@@ -185,6 +189,8 @@ void MainWindow::initActions() {
       }
     });
   });
+
+  updateHistoryActions();
 }
 
 void MainWindow::initIcons() {
@@ -371,7 +377,46 @@ void MainWindow::setPage(MainWindowPage page) {
   initPage(page);
   ui_->statusbar->clearMessage();
   ui_->stackedWidget->setCurrentIndex(static_cast<int>(page));
+  rememberPage(page);
   updateSearchBoxForPage(page);
+}
+
+void MainWindow::goBack() {
+  if (m_pageHistoryIndex <= 0) return;
+  m_restoringPageHistory = true;
+  --m_pageHistoryIndex;
+  navigateTo(m_pageHistory.at(m_pageHistoryIndex));
+  m_restoringPageHistory = false;
+  updateHistoryActions();
+}
+
+void MainWindow::goForward() {
+  if (m_pageHistoryIndex < 0 || m_pageHistoryIndex >= m_pageHistory.size() - 1) return;
+  m_restoringPageHistory = true;
+  ++m_pageHistoryIndex;
+  navigateTo(m_pageHistory.at(m_pageHistoryIndex));
+  m_restoringPageHistory = false;
+  updateHistoryActions();
+}
+
+void MainWindow::rememberPage(MainWindowPage page) {
+  if (m_restoringPageHistory) return;
+  if (m_pageHistoryIndex >= 0 && m_pageHistory.value(m_pageHistoryIndex) == page) {
+    updateHistoryActions();
+    return;
+  }
+  while (m_pageHistory.size() > m_pageHistoryIndex + 1) {
+    m_pageHistory.removeLast();
+  }
+  m_pageHistory.push_back(page);
+  m_pageHistoryIndex = m_pageHistory.size() - 1;
+  updateHistoryActions();
+}
+
+void MainWindow::updateHistoryActions() {
+  ui_->actionBack->setEnabled(m_pageHistoryIndex > 0);
+  ui_->actionForward->setEnabled(m_pageHistoryIndex >= 0 &&
+                                 m_pageHistoryIndex < m_pageHistory.size() - 1);
 }
 
 void MainWindow::submitSearchBox() {
@@ -447,6 +492,22 @@ void MainWindow::displayWindow() {
 
 void MainWindow::about() {
   displayAboutDialog(this);
+}
+
+void MainWindow::checkForUpdates() {
+  const auto version = QString::fromStdString(taiga::version().to_string());
+  QMessageBox msgBox{this};
+  msgBox.setIcon(QMessageBox::Information);
+  msgBox.setWindowTitle(tr("Check for updates"));
+  msgBox.setText(tr("You are running Taiga %1.").arg(version));
+  msgBox.setInformativeText(
+      tr("Open the Taiga releases page to compare this build with the latest release?"));
+  auto* openButton = msgBox.addButton(tr("Open releases"), QMessageBox::AcceptRole);
+  msgBox.addButton(QMessageBox::Cancel);
+  msgBox.exec();
+  if (msgBox.clickedButton() == openButton) {
+    QDesktopServices::openUrl(QUrl{"https://github.com/erengy/taiga/releases"});
+  }
 }
 
 void MainWindow::donate() const {

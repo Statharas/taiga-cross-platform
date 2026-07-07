@@ -49,7 +49,7 @@ Sources used for v1 comparison:
 | --- | --- | --- | --- |
 | Status tabs | Watching, Completed, On hold, Dropped, Plan to watch with counts | Implemented | Counts follow loaded account data. |
 | Status icon column | Small colored square by airing status | Implemented | Covered by UI parity test. |
-| Columns | Title, progress, score, type, season, last updated | Implemented | Header context/column visibility still needs a dedicated pass. |
+| Columns | Title, progress, score, type, season, last updated | Implemented | Header context menu now toggles column visibility; persistence/order parity remains. |
 | Progress bar | Filled only when total episode count is known | Implemented | Core test guards `0/?` from arbitrary fill. |
 | Score display/editor | Score value or dash | Implemented display | Cell-specific score popup parity remains a risk. |
 | Filtering | Main search field filters list | Implemented | Verify against service display names and alt titles. |
@@ -120,7 +120,7 @@ Sources used for v1 comparison:
 | Download queue | Sort marked items by configured order | Implemented | Core test covers episode order. |
 | Magnet links | Opens magnet when setting is enabled | Implemented | Core test covers preference. |
 | `.torrent` files | Downloads, saves, archives, optionally opens app | Implemented | Custom client path/app mode needs Linux workflow testing. |
-| Filters | Named defaults plus JSON-backed custom list | Partial | Full v1 filter editor/action/operator model remains the biggest torrent gap. |
+| Filters | Named defaults plus JSON-backed custom list and structured Add/Edit dialog | Partial | Multi-condition v1 operator/action matrix still needs a dedicated pass. |
 
 ## Settings
 
@@ -139,7 +139,7 @@ Sources used for v1 comparison:
 | Sharing/mIRC | Message, server, channel, action options | Implemented UI | Windows DDE/mIRC behavior needs platform replacement strategy. |
 | Torrents/Discovery | Source/search URLs, auto-check, action | Implemented | Auto-check now exists in Torrents widget. |
 | Torrents/Downloads | Queue sort, download folder, open app, magnet options | Implemented UI/core | Custom client launch still needs Linux workflow test. |
-| Torrents/Filters | Enable, archive limit, add/remove/reorder/import/export/reset | Implemented UI model | Full condition/action parity still pending. |
+| Torrents/Filters | Enable, archive limit, add/edit/remove/reorder/import/export/reset | Implemented UI model | Single-condition structured rules are implemented; full v1 multi-condition parity remains. |
 | Advanced/Settings | Editable advanced key/value list | Implemented | Keep key names mapped in `settings-migration-map.md`. |
 | Advanced/Cache | Clear history/images/torrents/torrent history | Implemented UI | Verify deletion paths with temporary profile. |
 

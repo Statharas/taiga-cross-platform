@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
            "Double click", "Detect media players", "Detect streaming media",
            "Enable Discord sharing", "Edit format", "Test connection", "Command",
            "Feed source", "Download folder", "Enable torrent filters",
-           "Filters", "Select all", "Clear all",
+           "Filters", "Add", "Edit", "Select all", "Clear all",
            "Application / Remember main window position and size",
            "Torrents / Download path for .torrent files", "History", "Poster images",
            "Torrent archive",

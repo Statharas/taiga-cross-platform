@@ -259,20 +259,32 @@ QJsonArray torrentFilters() {
   return hasLegacyDefault && !hasListAwareDefault ? defaultTorrentFilters() : document.array();
 }
 
-void addTorrentFilterItem(QListWidget* list, const QString& name, bool enabled) {
+QString torrentFilterSummary(const QJsonObject& filter) {
+  const auto action = filter.value("action").toString();
+  const auto field = filter.value("field").toString();
+  const auto match = filter.value("match").toString();
+  const auto value = filter.value("value").toString();
+  if (action.isEmpty() || field.isEmpty() || value.isEmpty()) return {};
+  return QObject::tr("%1 when %2 %3 \"%4\"").arg(action, field, match, value);
+}
+
+void addTorrentFilterItem(QListWidget* list, const QJsonObject& filter) {
+  const auto name = filter.value("name").toString();
+  if (name.isEmpty()) return;
   auto* item = new QListWidgetItem(name, list);
   item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
-  item->setCheckState(enabled ? Qt::Checked : Qt::Unchecked);
+  item->setCheckState(filter.value("enabled").toBool(true) ? Qt::Checked : Qt::Unchecked);
+  item->setData(Qt::UserRole, filter);
+  if (const auto summary = torrentFilterSummary(filter); !summary.isEmpty()) {
+    item->setToolTip(summary);
+  }
 }
 
 void loadTorrentFilters(QListWidget* list, const QJsonArray& filters) {
   list->clear();
   for (const auto& value : filters) {
     const auto object = value.toObject();
-    const auto name = object.value("name").toString();
-    if (!name.isEmpty()) {
-      addTorrentFilterItem(list, name, object.value("enabled").toBool(true));
-    }
+    addTorrentFilterItem(list, object);
   }
 }
 
@@ -280,13 +292,75 @@ void saveTorrentFilters(QListWidget* list) {
   QJsonArray filters;
   for (int i = 0; i < list->count(); ++i) {
     const auto* item = list->item(i);
-    filters.push_back(QJsonObject{
-        {"name", item->text()},
-        {"enabled", item->checkState() == Qt::Checked},
-    });
+    auto object = item->data(Qt::UserRole).toJsonObject();
+    object["name"] = item->text();
+    object["enabled"] = item->checkState() == Qt::Checked;
+    filters.push_back(object);
   }
   taiga::settings.setStringValue("rss.torrent.filters.itemsJson",
                                  QJsonDocument(filters).toJson(QJsonDocument::Compact));
+}
+
+bool editTorrentFilter(QWidget* parent, QListWidgetItem* item) {
+  if (!item) return false;
+
+  auto filter = item->data(Qt::UserRole).toJsonObject();
+  QDialog dialog{parent};
+  dialog.setWindowTitle(QObject::tr("Edit torrent filter"));
+  auto* layout = new QVBoxLayout(&dialog);
+  auto* form = new QFormLayout();
+  auto* name = new QLineEdit(filter.value("name").toString(), &dialog);
+  auto* action = new QComboBox(&dialog);
+  action->addItem(QObject::tr("Select"), "select");
+  action->addItem(QObject::tr("Prefer"), "prefer");
+  action->addItem(QObject::tr("Discard"), "discard");
+  action->addItem(QObject::tr("Discard and deactivate"), "discard_inactive");
+  auto* field = new QComboBox(&dialog);
+  field->addItem(QObject::tr("Any text"), "any");
+  field->addItem(QObject::tr("Anime title"), "title");
+  field->addItem(QObject::tr("Filename"), "filename");
+  field->addItem(QObject::tr("Description"), "description");
+  field->addItem(QObject::tr("Fansub group"), "group");
+  field->addItem(QObject::tr("Video"), "video");
+  field->addItem(QObject::tr("Category"), "category");
+  field->addItem(QObject::tr("Source"), "source");
+  auto* match = new QComboBox(&dialog);
+  match->addItem(QObject::tr("contains"), "contains");
+  match->addItem(QObject::tr("equals"), "equals");
+  match->addItem(QObject::tr("matches regex"), "regex");
+  auto* value = new QLineEdit(filter.value("value").toString(), &dialog);
+
+  const auto setCombo = [](QComboBox* combo, const QString& data) {
+    const auto index = combo->findData(data);
+    if (index >= 0) combo->setCurrentIndex(index);
+  };
+  setCombo(action, filter.value("action").toString("select"));
+  setCombo(field, filter.value("field").toString("any"));
+  setCombo(match, filter.value("match").toString("contains"));
+
+  form->addRow(QObject::tr("Name"), name);
+  form->addRow(QObject::tr("Action"), action);
+  form->addRow(QObject::tr("Field"), field);
+  form->addRow(QObject::tr("Condition"), match);
+  form->addRow(QObject::tr("Value"), value);
+  layout->addLayout(form);
+
+  auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+  layout->addWidget(buttons);
+  QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+  QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+  if (dialog.exec() != QDialog::Accepted) return false;
+
+  filter["name"] = name->text().trimmed().isEmpty() ? value->text().trimmed() : name->text().trimmed();
+  filter["action"] = action->currentData().toString();
+  filter["field"] = field->currentData().toString();
+  filter["match"] = match->currentData().toString();
+  filter["value"] = value->text().trimmed();
+  item->setText(filter.value("name").toString());
+  item->setData(Qt::UserRole, filter);
+  item->setToolTip(torrentFilterSummary(filter));
+  return true;
 }
 
 }  // namespace
@@ -627,13 +701,14 @@ SettingsDialog::SettingsDialog(QWidget* parent) : QDialog(parent), ui_(new Ui::S
     auto* row = new QHBoxLayout(buttons);
     row->setContentsMargins(0, 0, 0, 0);
     auto* addButton = new QPushButton(tr("Add"), buttons);
+    auto* editButton = new QPushButton(tr("Edit"), buttons);
     auto* removeButton = new QPushButton(tr("Remove"), buttons);
     auto* upButton = new QPushButton(tr("Move up"), buttons);
     auto* downButton = new QPushButton(tr("Move down"), buttons);
     auto* importButton = new QPushButton(tr("Import"), buttons);
     auto* exportButton = new QPushButton(tr("Export"), buttons);
     auto* resetButton = new QPushButton(tr("Reset"), buttons);
-    for (auto* button : {addButton, removeButton, upButton, downButton, importButton, exportButton, resetButton}) {
+    for (auto* button : {addButton, editButton, removeButton, upButton, downButton, importButton, exportButton, resetButton}) {
       row->addWidget(button);
     }
     row->addStretch();
@@ -643,11 +718,20 @@ SettingsDialog::SettingsDialog(QWidget* parent) : QDialog(parent), ui_(new Ui::S
     layout->insertWidget(layout->count() - 1, group);
 
     connect(addButton, &QPushButton::clicked, this, [this, list]() {
-      bool accepted = false;
-      const auto name = QInputDialog::getText(this, tr("Add torrent filter"), tr("Name"),
-                                              QLineEdit::Normal, {}, &accepted);
-      if (accepted && !name.trimmed().isEmpty()) addTorrentFilterItem(list, name.trimmed(), true);
+      addTorrentFilterItem(list, QJsonObject{{"name", tr("New filter")},
+                                             {"enabled", true},
+                                             {"action", "select"},
+                                             {"field", "any"},
+                                             {"match", "contains"}});
+      list->setCurrentRow(list->count() - 1);
+      if (!editTorrentFilter(this, list->currentItem())) {
+        delete list->takeItem(list->currentRow());
+      }
     });
+    connect(editButton, &QPushButton::clicked, this,
+            [this, list]() { editTorrentFilter(this, list->currentItem()); });
+    connect(list, &QListWidget::itemDoubleClicked, this,
+            [this](QListWidgetItem* item) { editTorrentFilter(this, item); });
     connect(removeButton, &QPushButton::clicked, this, [list]() {
       delete list->takeItem(list->currentRow());
     });

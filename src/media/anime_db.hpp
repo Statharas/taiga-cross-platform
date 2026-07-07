@@ -45,6 +45,7 @@ public:
 
   void updateItem(const Anime& item);
   void updateEntry(const ListEntry& entry);
+  void deleteEntry(const int animeId);
   void clearEntries();
 
 signals:

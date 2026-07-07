@@ -19,9 +19,12 @@
 #include "network.hpp"
 
 #include <QNetworkReply>
+#include <QNetworkProxy>
+#include <QUrl>
 
 #include "base/string.hpp"
 #include "taiga/config.h"
+#include "taiga/settings.hpp"
 
 namespace taiga {
 
@@ -29,7 +32,17 @@ NetworkAccessManager::NetworkAccessManager(QObject* parent) : QNetworkAccessMana
   setAutoDeleteReplies(true);
   setTransferTimeout(std::chrono::seconds{30});
 
-  // @TODO: Set proxy
+  const auto proxyHost = taiga::settings.stringValue("program.proxy.host").trimmed();
+  if (!proxyHost.isEmpty()) {
+    QUrl proxyUrl = QUrl::fromUserInput(proxyHost);
+    const auto scheme = proxyUrl.scheme().toLower();
+    QNetworkProxy proxy{scheme == "socks5" ? QNetworkProxy::Socks5Proxy : QNetworkProxy::HttpProxy};
+    proxy.setHostName(proxyUrl.host().isEmpty() ? proxyHost : proxyUrl.host());
+    proxy.setPort(proxyUrl.port(8080));
+    proxy.setUser(taiga::settings.stringValue("program.proxy.username"));
+    proxy.setPassword(taiga::settings.stringValue("program.proxy.password"));
+    setProxy(proxy);
+  }
 
   connect(this, &QNetworkAccessManager::finished, this, [](QNetworkReply* reply) {
     if (!qApp || !qApp->property("taiga.debug").toBool()) return;

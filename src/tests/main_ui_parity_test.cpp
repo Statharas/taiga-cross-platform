@@ -65,6 +65,9 @@ int main(int argc, char* argv[]) {
   require(stack->count() == 9, "Main page count changed");
   require(menuTitles(menuBar) == QStringList({"File", "Services", "Tools", "View", "Help"}),
           "Main menu order no longer matches the v1 shell");
+  const auto* updateAction = window.findChild<QAction*>("actionCheckForUpdates");
+  require(updateAction != nullptr && updateAction->isEnabled(),
+          "Check for updates should expose a cross-platform update path");
 
   gui::NavigationWidget navigation(nullptr);
   require(topLevelItems(navigation) ==
