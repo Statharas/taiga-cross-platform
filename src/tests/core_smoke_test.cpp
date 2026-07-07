@@ -195,6 +195,23 @@ int main(int argc, char* argv[]) {
           "Preferred fansub filters must not select anime outside the user's list");
   taiga::settings.setStringValue("rss.torrent.filters.itemsJson", {});
 
+  auto groupedItems = std::vector<track::torrent::Item>{
+      {.published = "Tue, 07 Jul 2026 13:00:00 GMT",
+       .torrent_category = track::torrent::Category::Anime},
+      {.published = "Tue, 07 Jul 2026 12:30:00 GMT",
+       .torrent_category = track::torrent::Category::Batch},
+      {.published = "Tue, 07 Jul 2026 12:00:00 GMT",
+       .torrent_category = track::torrent::Category::Anime},
+      {.published = "Tue, 07 Jul 2026 11:30:00 GMT",
+       .torrent_category = track::torrent::Category::Batch},
+  };
+  track::torrent::sortItems(groupedItems);
+  require(groupedItems.at(0).torrent_category == track::torrent::Category::Anime &&
+              groupedItems.at(1).torrent_category == track::torrent::Category::Anime &&
+              groupedItems.at(2).torrent_category == track::torrent::Category::Batch &&
+              groupedItems.at(3).torrent_category == track::torrent::Category::Batch,
+          "Torrent sorting should keep one contiguous block per v1 group");
+
   const auto nyaaFeed = track::torrent::parseFeedDocument(R"(
     <rss xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel>
       <title>Nyaa</title>

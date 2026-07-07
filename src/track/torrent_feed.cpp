@@ -449,6 +449,9 @@ void applyFilters(std::vector<Item>& items) {
 
 void sortItems(std::vector<Item>& items) {
   std::stable_sort(items.begin(), items.end(), [](const Item& lhs, const Item& rhs) {
+    if (lhs.torrent_category != rhs.torrent_category) {
+      return static_cast<int>(lhs.torrent_category) < static_cast<int>(rhs.torrent_category);
+    }
     if (statePriority(lhs.state) != statePriority(rhs.state)) {
       return statePriority(lhs.state) < statePriority(rhs.state);
     }
