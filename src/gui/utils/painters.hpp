@@ -35,6 +35,8 @@ namespace gui {
 void paintEmptyListText(QAbstractScrollArea* widget, const QString& text);
 
 void paintProgressBar(QPainter* painter, const QStyleOption& option, const anime::Details* anime,
-                      const anime::list::Entry* entry);
+                      const anime::list::Entry* entry, bool showButtons = false);
+
+QRect progressButtonRect(const QRect& rect, bool increment);
 
 }  // namespace gui

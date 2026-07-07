@@ -86,7 +86,8 @@ void ListItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
           index.data(static_cast<int>(AnimeListItemDataRole::ListEntry)).value<const ListEntry*>();
       QStyleOptionViewItem opt = option;
       opt.rect.adjust(2, 2, -2, -2);
-      paintProgressBar(painter, opt, anime, entry);
+      paintProgressBar(painter, opt, anime, entry,
+                       option.state.testFlag(QStyle::State_MouseOver));
       return;
     }
   }

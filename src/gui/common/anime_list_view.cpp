@@ -21,12 +21,19 @@
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QMenu>
+#include <QMouseEvent>
+#include <QStatusBar>
 
 #include "gui/common/anime_list_item_delegate.hpp"
+#include "gui/main/main_window.hpp"
 #include "gui/common/anime_list_view_base.hpp"
 #include "gui/models/anime_list_model.hpp"
 #include "gui/models/anime_list_proxy_model.hpp"
 #include "gui/utils/painters.hpp"
+#include "media/anime.hpp"
+#include "media/anime_db.hpp"
+#include "media/anime_list.hpp"
+#include "sync/service.hpp"
 #include "track/play.hpp"
 
 namespace gui {
@@ -39,6 +46,8 @@ ListView::ListView(QWidget* parent, AnimeListModel* model, AnimeListProxyModel* 
 
   setAlternatingRowColors(true);
   setItemDelegate(new ListItemDelegate(this));
+  setMouseTracking(true);
+  viewport()->setMouseTracking(true);
 
   setAllColumnsShowFocus(true);
   setExpandsOnDoubleClick(false);
@@ -88,6 +97,23 @@ ListView::ListView(QWidget* parent, AnimeListModel* model, AnimeListProxyModel* 
           qOverload<const QModelIndex&>(&QAbstractItemView::edit));
 }
 
+void ListView::leaveEvent(QEvent* event) {
+  unsetCursor();
+  QTreeView::leaveEvent(event);
+}
+
+void ListView::mouseMoveEvent(QMouseEvent* event) {
+  const auto button = progressButtonAt(event->pos());
+  if (button == ProgressButton::None) {
+    unsetCursor();
+    setToolTip({});
+  } else {
+    setCursor(Qt::PointingHandCursor);
+    setToolTip(button == ProgressButton::Increment ? tr("+1 episode") : tr("-1 episode"));
+  }
+  QTreeView::mouseMoveEvent(event);
+}
+
 void ListView::keyPressEvent(QKeyEvent* event) {
   if (event->key() == Qt::Key::Key_Return || event->key() == Qt::Key::Key_Enter) {
     const auto indexes = selectionModel()->selectedRows();
@@ -105,6 +131,18 @@ void ListView::keyPressEvent(QKeyEvent* event) {
 }
 
 void ListView::mousePressEvent(QMouseEvent* event) {
+  if (event->button() == Qt::MouseButton::LeftButton) {
+    const auto button = progressButtonAt(event->pos());
+    if (button != ProgressButton::None) {
+      const auto index = indexAt(event->pos());
+      if (updateProgressAt(index, button == ProgressButton::Increment ? 1 : -1)) {
+        setCurrentIndex(index);
+        event->accept();
+        return;
+      }
+    }
+  }
+
   if (event->button() == Qt::MouseButton::MiddleButton) {
     const QModelIndex index = indexAt(event->pos());
     if (index.isValid()) {
@@ -115,6 +153,66 @@ void ListView::mousePressEvent(QMouseEvent* event) {
   }
 
   QTreeView::mousePressEvent(event);
+}
+
+ListView::ProgressButton ListView::progressButtonAt(const QPoint& pos) const {
+  const auto index = indexAt(pos);
+  if (!index.isValid() || index.column() != AnimeListModel::COLUMN_PROGRESS) {
+    return ProgressButton::None;
+  }
+
+  const auto anime = index.data(static_cast<int>(AnimeListItemDataRole::Anime)).value<const Anime*>();
+  const auto entry =
+      index.data(static_cast<int>(AnimeListItemDataRole::ListEntry)).value<const ListEntry*>();
+  if (!anime || !entry) return ProgressButton::None;
+  if (entry->status == anime::list::Status::Dropped) return ProgressButton::None;
+  if (entry->status == anime::list::Status::Completed && !entry->rewatching) {
+    return ProgressButton::None;
+  }
+
+  auto rect = visualRect(index);
+  rect.adjust(2, 2, -2, -2);
+
+  if (entry->watched_episodes > 0 && progressButtonRect(rect, false).contains(pos)) {
+    return ProgressButton::Decrement;
+  }
+
+  const auto canIncrement = anime->episode_count <= 0 || entry->watched_episodes < anime->episode_count;
+  if (canIncrement && progressButtonRect(rect, true).contains(pos)) {
+    return ProgressButton::Increment;
+  }
+
+  return ProgressButton::None;
+}
+
+bool ListView::updateProgressAt(const QModelIndex& index, int delta) {
+  if (!index.isValid()) return false;
+
+  const auto anime = index.data(static_cast<int>(AnimeListItemDataRole::Anime)).value<const Anime*>();
+  const auto existing =
+      index.data(static_cast<int>(AnimeListItemDataRole::ListEntry)).value<const ListEntry*>();
+  if (!anime || !existing) return false;
+  if (existing->status == anime::list::Status::Dropped) return false;
+  if (existing->status == anime::list::Status::Completed && !existing->rewatching) return false;
+
+  auto entry = *existing;
+  const auto maximum = anime->episode_count > 0 ? anime->episode_count : anime::kMaxEpisodeCount;
+  entry.watched_episodes = std::clamp(entry.watched_episodes + delta, 0, maximum);
+  if (entry.watched_episodes == existing->watched_episodes) return false;
+
+  entry.last_updated = QDateTime::currentSecsSinceEpoch();
+  if (anime->episode_count > 0 && entry.watched_episodes == anime->episode_count) {
+    entry.status = anime::list::Status::Completed;
+  } else if (!entry.rewatching && entry.status == anime::list::Status::NotInList) {
+    entry.status = anime::list::Status::Watching;
+  }
+
+  mainWindow()->statusBar()->showMessage(tr("Updating list..."));
+  taiga_sync::updateListEntry(entry, [entry](bool ok, const QString& message) {
+    if (!ok) anime::db.updateEntry(entry);
+    mainWindow()->statusBar()->showMessage(message, 5000);
+  });
+  return true;
 }
 
 void ListView::paintEvent(QPaintEvent* event) {

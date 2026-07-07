@@ -40,10 +40,21 @@ public:
 
 protected:
   void keyPressEvent(QKeyEvent* event) override;
+  void leaveEvent(QEvent* event) override;
+  void mouseMoveEvent(QMouseEvent* event) override;
   void mousePressEvent(QMouseEvent* event) override;
   void paintEvent(QPaintEvent* event) override;
 
 private:
+  enum class ProgressButton {
+    None,
+    Decrement,
+    Increment,
+  };
+
+  ProgressButton progressButtonAt(const QPoint& pos) const;
+  bool updateProgressAt(const QModelIndex& index, int delta);
+
   ListViewBase* m_base = nullptr;
 };
 
