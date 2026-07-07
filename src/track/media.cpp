@@ -22,6 +22,7 @@
 #include <QRegularExpression>
 
 #include "base/file.hpp"
+#include "base/log.hpp"
 #include "media/anime_db.hpp"
 #include "taiga/settings.hpp"
 #include "track/episode.hpp"
@@ -53,6 +54,11 @@ std::optional<track::Episode> episodeFromMediaInfo(const anisthesia::MediaInfo& 
   return episode;
 }
 
+bool sameEpisode(const track::Episode& left, const track::Episode& right) {
+  return left.animeId() == right.animeId() &&
+         left.element(anitomy::ElementKind::Episode) == right.element(anitomy::ElementKind::Episode);
+}
+
 }  // namespace
 
 namespace track::media {
@@ -78,15 +84,18 @@ bool Detection::init() {
   const auto file = base::readFile(":/players.anisthesia");
 
   if (file.isEmpty()) {
+    LOGD("Media detection disabled: players.anisthesia resource is empty");
     return false;
   }
 
   if (!anisthesia::ParsePlayersData(file.toStdString(), players_)) {
+    LOGD("Media detection disabled: players.anisthesia could not be parsed");
     return false;
   }
 
   const auto interval = taiga::settings.mediaDetectionInterval();
   pollTimer_->start(interval);
+  LOGD("Media detection enabled: players={} interval_ms={}", players_.size(), interval.count());
 
   return true;
 }
@@ -112,8 +121,8 @@ void Detection::poll() {
   }
   if (players.empty()) return;
 
-  static const auto media_proc = [](const anisthesia::MediaInfo&) {
-    return true;  // Accept all media
+  static const auto media_proc = [](const anisthesia::MediaInfo& mediaInfo) {
+    return episodeFromMediaInfo(mediaInfo).has_value();
   };
 
   std::vector<anisthesia::Result> results;
@@ -133,7 +142,7 @@ void Detection::poll() {
   const auto episode = episodeFromMediaInfo(currentMedia_->information.front());
   if (!episode) return;
 
-  if (!currentEpisode_ || currentEpisode_->animeId() != episode->animeId()) {
+  if (!currentEpisode_ || !sameEpisode(*currentEpisode_, *episode)) {
     currentEpisode_ = *episode;
     emit currentEpisodeChanged(episode);
   }

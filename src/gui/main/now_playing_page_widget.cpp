@@ -163,7 +163,7 @@ void NowPlayingPageWidget::setPlaying(const track::Episode& episode) {
 
 void NowPlayingPageWidget::refresh() {
   const bool hasEpisode = m_episode.has_value();
-  m_emptyLabel->setVisible(false);
+  m_emptyLabel->setVisible(!hasEpisode);
   for (auto* widget : m_episodeWidgets) {
     widget->setVisible(hasEpisode);
   }

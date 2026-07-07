@@ -23,7 +23,9 @@
 #include "sync/myanimelist_parsers.hpp"
 #include "taiga/settings.hpp"
 #include "taiga/version.hpp"
+#include "track/episode.hpp"
 #include "track/torrent_feed.hpp"
+#include "track/recognition.hpp"
 #include "track/recognition_cache.hpp"
 #include "track/recognition_normalize.hpp"
 #include "track/scanner.hpp"
@@ -51,6 +53,24 @@ int main(int argc, char* argv[]) {
           "Season normalization changed");
   require(track::recognition::normalize("The iDOLM@STER") == "idolmaster",
           "Title transliteration changed");
+
+  Anime fateStrangeFake;
+  fateStrangeFake.id = 166617;
+  fateStrangeFake.status = anime::Status::Airing;
+  fateStrangeFake.titles.romaji = "Fate/strange Fake";
+  fateStrangeFake.titles.english = "Fate/strange Fake";
+  fateStrangeFake.episode_count = anime::kUnknownEpisodeCount;
+  anime::db.updateItem(fateStrangeFake);
+  track::recognition::cache()->update(fateStrangeFake);
+  auto fateEpisode = track::recognition::parseFileInfo(QFileInfo{
+      "/home/user/Downloads/[SubsPlease] Fate Strange Fake (01-13) (1080p) [Batch]/"
+      "[SubsPlease] Fate Strange Fake - 01v2 (1080p) [7708674D].mkv"});
+  require(fateEpisode.element(anitomy::ElementKind::Title) == "Fate Strange Fake",
+          "Fate/strange Fake filename title parsing changed");
+  require(fateEpisode.element(anitomy::ElementKind::Episode).starts_with("01"),
+          "Fate/strange Fake filename episode parsing changed");
+  require(track::recognition::identify(fateEpisode) == fateStrangeFake.id,
+          "Fate/strange Fake filename should identify against slash-normalized title");
 
   const auto entryJson = QJsonDocument::fromJson(R"({
     "id": 42,

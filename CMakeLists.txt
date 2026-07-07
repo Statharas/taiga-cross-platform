@@ -27,6 +27,7 @@ include(QtSetup)
 
 if (TAIGA_BUILD_TESTS)
 	enable_testing()
+	set(ANISTHESIA_BUILD_TESTS ON CACHE BOOL "Build Anisthesia tests" FORCE)
 endif()
 
 add_subdirectory(deps)
