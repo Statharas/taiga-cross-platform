@@ -24,6 +24,8 @@ Why:
 The repo now exposes `Application::setMainWindowForTest()` so tests can build a
 real `MainWindow` without taking the single-instance lock or entering the full
 event loop.
+Tests set `TAIGA_DATA_PATH` to a temporary directory so fixture settings do not
+pollute the portable runtime data under `bin/data`.
 
 ## New coverage added
 

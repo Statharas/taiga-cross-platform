@@ -2,6 +2,7 @@
 #include <QLineEdit>
 #include <QStatusBar>
 #include <QTest>
+#include <QTemporaryDir>
 
 #include <cstdlib>
 #include <iostream>
@@ -32,6 +33,9 @@ bool hasLabelText(const QWidget& widget, const QString& text) {
 
 int main(int argc, char* argv[]) {
   qputenv("QT_QPA_PLATFORM", "offscreen");
+  QTemporaryDir dataDir;
+  require(dataDir.isValid(), "Could not create temporary data directory");
+  qputenv("TAIGA_DATA_PATH", dataDir.path().toUtf8());
 
   taiga::Application app(argc, argv);
   QCoreApplication::setApplicationName("taiga-ui-interaction-driver-test");

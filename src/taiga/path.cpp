@@ -29,6 +29,11 @@ namespace taiga {
 
 // Returns current path in portable mode, AppData location otherwise
 std::string get_data_path() {
+  const auto overridePath = qEnvironmentVariable("TAIGA_DATA_PATH");
+  if (!overridePath.isEmpty()) {
+    QDir{}.mkpath(overridePath);
+    return overridePath.toStdString();
+  }
 #ifdef TAIGA_PORTABLE
   return std::format("{}/data", QCoreApplication::applicationDirPath().toStdString());
 #else
