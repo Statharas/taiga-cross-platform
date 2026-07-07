@@ -102,6 +102,29 @@ void fetchSeason(const anime::Season season, std::function<void(bool, const QStr
   }
 }
 
+void searchTitle(const QString& query, std::function<void(bool, const QString&)> done) {
+  const auto trimmed = query.trimmed();
+  if (trimmed.isEmpty()) {
+    if (done) done(false, "Search query is empty.");
+    return;
+  }
+
+  switch (currentServiceId()) {
+    case ServiceId::AniList:
+      anilist::Service::instance()->search(trimmed, std::move(done));
+      break;
+    case ServiceId::MyAnimeList:
+    case ServiceId::Kitsu:
+      if (done) {
+        done(false, QString{"%1 search is not implemented yet."}.arg(serviceName(currentServiceId())));
+      }
+      break;
+    case ServiceId::Unknown:
+      if (done) done(false, "No active metadata service is configured.");
+      break;
+  }
+}
+
 void synchronize(std::function<void(bool, const QString&)> done) {
   switch (currentServiceId()) {
     case ServiceId::MyAnimeList:

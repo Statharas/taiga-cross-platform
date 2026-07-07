@@ -37,7 +37,7 @@ public:
   void authenticateUser(std::function<void(bool, const QString&)> done = {});
   void fetchAnime(const int id);
   void fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done = {});
-  void search(const QString& query);
+  void search(const QString& query, std::function<void(bool, const QString&)> done = {});
   void fetchListEntries(std::function<void(bool, const QString&)> done = {});
   void addListEntry();
   void deleteListEntry(const int id);

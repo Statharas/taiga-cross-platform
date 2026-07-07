@@ -58,6 +58,7 @@ QString serviceSlug(const ServiceId serviceId);
 
 void fetchAnime(const int id);
 void fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done = {});
+void searchTitle(const QString& query, std::function<void(bool, const QString&)> done = {});
 void synchronize(std::function<void(bool, const QString&)> done = {});
 
 QString animePageUrl(const int id);

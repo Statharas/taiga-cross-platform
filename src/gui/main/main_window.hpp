@@ -82,6 +82,7 @@ private slots:
   void playRandomAnime();
   void scanAvailableEpisodes();
   void setPage(MainWindowPage page);
+  void submitSearchBox();
   void support() const;
   void profile();
 

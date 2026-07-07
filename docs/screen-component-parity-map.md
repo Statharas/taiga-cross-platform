@@ -105,7 +105,7 @@ Sources used for v1 comparison:
 | Component | v1 behavior | Qt v2 status | Follow-up |
 | --- | --- | --- | --- |
 | Toolbar | Check new, download marked, discard all, settings | Implemented | Auto-check countdown now updates the check action text. |
-| Search slot | Top-right shell search changes to `Search for torrents` | Implemented | The torrent page intentionally has no local search field. |
+| Search slot | Top-right shell search changes to `Search for torrents`; Enter searches the configured torrent search feed | Implemented | The torrent page intentionally has no local search field. |
 | Fetch | 30s timeout, RSS Accept, user-agent, proxy/cert settings | Implemented | Transfer progress text is still simpler than v1. |
 | Ctrl-refresh | Loads cached `feed.xml` | Implemented | Needs manual Ctrl-click verification. |
 | Feed cache | Saves successful feed per source | Implemented | Cache path is platform data path. |

@@ -144,6 +144,8 @@ Recently aligned:
 - Automatic torrent checking now runs from the Torrents page and shows a
   countdown in the toolbar action text.
 - Enter and numpad Enter trigger the same download/open path as double-click.
+- Return in the shared shell search box submits the configured torrent search
+  feed URL and replaces the torrent list with those results.
 
 ## Remaining translation gaps
 

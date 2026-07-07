@@ -171,15 +171,16 @@ void Service::fetchSeason(const anime::Season season, std::function<void(bool, c
   (*fetchPage)(1);
 }
 
-void Service::search(const QString& query) {
+void Service::search(const QString& query, std::function<void(bool, const QString&)> done) {
   const QJsonDocument data{{
       {"query", gql("MediaSearch")},
       {"variables", QJsonObject{{"query", query}}},
   }};
 
-  const auto callback = [this](QRestReply& reply) {
+  const auto callback = [this, done = std::move(done)](QRestReply& reply) {
     if (isError(reply)) {
       handleError(reply);
+      if (done) done(false, reply.errorString());
       return;
     }
 
@@ -197,12 +198,18 @@ void Service::search(const QString& query) {
 
     if (!items) {
       handleError(reply, "Could not parse search results.");
+      if (done) done(false, "Could not parse AniList search results.");
       return;
     }
 
+    int updated = 0;
     for (const auto& item : *items) {
-      if (item) anime::db.updateItem(*item);
+      if (item) {
+        anime::db.updateItem(*item);
+        ++updated;
+      }
     }
+    if (done) done(true, QString{"Found %1 AniList search result(s)."}.arg(updated));
   };
 
   manager_.post(api_.createRequest(), data, this, callback);

@@ -28,6 +28,7 @@
 #include <QTimer>
 #include <QToolBar>
 #include <QUrl>
+#include <QUrlQuery>
 #include <QVBoxLayout>
 #include <algorithm>
 #include <optional>
@@ -197,7 +198,10 @@ void TorrentsWidget::fetch() {
 
   const auto source = taiga::settings.stringValue("rss.torrent.source",
                                                   "https://www.tokyotosho.info/rss.php?filter=1,11&zwnj=0");
-  const QUrl url{source};
+  fetchUrl(QUrl{source});
+}
+
+void TorrentsWidget::fetchUrl(const QUrl& url) {
   if (!url.isValid() || url.scheme().isEmpty()) {
     statusLabel_->setText(tr("Torrent feed URL is invalid."));
     return;
@@ -229,6 +233,19 @@ void TorrentsWidget::fetch() {
     items_ = std::move(feed.items);
     populate();
   });
+}
+
+void TorrentsWidget::submitSearch(const QString& text) {
+  const auto query = text.trimmed();
+  if (query.isEmpty()) {
+    fetch();
+    return;
+  }
+
+  auto urlTemplate = taiga::settings.stringValue("rss.torrent.search",
+                                                 "https://nyaa.si/?page=rss&c=1_2&f=0&q=%title%");
+  urlTemplate.replace("%title%", QString::fromUtf8(QUrl::toPercentEncoding(query)));
+  fetchUrl(QUrl{urlTemplate});
 }
 
 void TorrentsWidget::discardSameAnime() {

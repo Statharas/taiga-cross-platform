@@ -33,12 +33,14 @@ public:
   ~TorrentsWidget() = default;
 
 public slots:
+  void submitSearch(const QString& text);
   void setFilterText(const QString& text);
 
 private:
   void archiveSelected();
   void archiveVisible();
   void fetch();
+  void fetchUrl(const QUrl& url);
   void fetchFromCache();
   void discardSameAnime();
   void discardSameGroup();

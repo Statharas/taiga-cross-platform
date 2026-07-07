@@ -317,6 +317,7 @@ void MainWindow::initToolbar() {
     m_searchBox->setClearButtonEnabled(true);
     m_searchBox->setFixedWidth(250);
     m_searchBox->setPlaceholderText(tr("Filter list or search MyAnimeList"));
+    connect(m_searchBox, &QLineEdit::returnPressed, this, &MainWindow::submitSearchBox);
 
     auto* spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -370,6 +371,31 @@ void MainWindow::setPage(MainWindowPage page) {
   ui_->statusbar->clearMessage();
   ui_->stackedWidget->setCurrentIndex(static_cast<int>(page));
   updateSearchBoxForPage(page);
+}
+
+void MainWindow::submitSearchBox() {
+  if (!m_searchBox) return;
+
+  const auto text = m_searchBox->text().trimmed();
+  if (text.isEmpty()) return;
+
+  const auto page = static_cast<MainWindowPage>(ui_->stackedWidget->currentIndex());
+  if (page == MainWindowPage::Torrents) {
+    if (m_torrentsWidget) m_torrentsWidget->submitSearch(text);
+    return;
+  }
+
+  if (page != MainWindowPage::Search) {
+    navigateTo(MainWindowPage::Search);
+  }
+
+  const auto service = taiga_sync::serviceName(taiga_sync::currentServiceId());
+  statusBar()->showMessage(tr("%1: Searching for \"%2\"...").arg(service, text));
+  taiga_sync::searchTitle(text, [this](bool ok, const QString& message) {
+    statusBar()->showMessage(message.isEmpty() ? (ok ? tr("Search complete.") : tr("Search failed."))
+                                               : message,
+                             ok ? 5000 : 8000);
+  });
 }
 
 void MainWindow::updateTitle() {
