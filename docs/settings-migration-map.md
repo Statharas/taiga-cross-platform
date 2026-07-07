@@ -42,7 +42,7 @@ shape:
 | Sharing / mIRC | Enable; service; target mode; multi-server; `/me`; channels; test DDE; format button | Present; settings persist; format button opens an editor; Linux uses a configurable external command instead of Windows DDE |
 | Torrents / Discovery | Feed source presets; search URL presets; auto-check; interval; new torrent action | Present; source/search preset dropdowns are editable and auto-check controls enable/disable dependents |
 | Torrents / Downloads | Queue sort; anime folder fallback; download folder browse; subfolder; open app; app mode/path browse; magnet setting | Present; folder/file browse controls are cross-platform and dependent controls follow their toggles |
-| Torrents / Filters | Enable; filter list; add/edit/remove/move/import/export/reset toolbar; archive limit | Present; filter rows are saved to Qt settings as JSON, can be imported/exported/reset, and structured single-condition rules can be edited |
+| Torrents / Filters | Enable; filter list; add/edit/remove/move/import/export/reset toolbar; archive limit | Present; filter rows are saved to Qt settings as JSON, can be imported/exported/reset, and structured all/any multi-condition rules with anime-ID limits can be edited |
 | Advanced / Settings | Editable list of 18 advanced values | Present as editable grouped controls |
 | Advanced / Cache | History, image cache, torrent files, torrent archive counts; clear selected | Present for history, poster cache, torrent files, and the v1 torrent archive file |
 
@@ -74,8 +74,9 @@ Backend status:
   in configured folders.
 - Torrent filter rows now have a Qt settings backend with add/edit/remove/move,
   import/export, and reset. The Qt Torrents page now fetches the configured RSS
-  feed, applies named defaults and structured action-field-condition-value rows,
-  shows archive matches, and can open or archive selected torrents.
+  feed, applies named defaults and structured multi-condition rows with
+  anime-ID limits, shows archive matches, and can open or archive selected
+  torrents.
 - mIRC sharing: v1 uses Windows DDE. The Linux Qt build exposes an external
   command setting and test launcher instead.
 - Torrent archive cache is exposed through the existing v1 archive file at
@@ -106,14 +107,16 @@ Findings:
 - Torrent Discovery source/search controls are editable preset dropdowns.
 - Torrent Downloads dependent-control enable/disable behavior is implemented
   for folder fallback and torrent application fields.
-- Torrent Filters now has a saved Qt-side filter list backend, structured single
-  condition editor, and the Torrents page consumes those filters when it parses
-  the configured RSS feed.
+- Torrent Filters now has a saved Qt-side filter list backend, structured
+  all/any multi-condition editor with anime-ID limits, and the Torrents page
+  consumes those filters when it parses the configured RSS feed.
 
 ## Regression coverage
 
 - `taiga-core-smoke`: guards core normalization/version behavior, AniList,
-  MyAnimeList, and Kitsu list-entry parsers, plus RSS/torrent feed parsing.
+  MyAnimeList, and Kitsu list-entry parsers, plus RSS/torrent feed parsing,
+  multi-condition filters, and torrent archive clearing.
 - `taiga-settings-dialog-smoke`: constructs the Qt settings dialog offscreen,
   verifies the 7-section / 18-page structure, and checks representative labels
-  and buttons from every original settings section.
+  and buttons from every original settings section. It also guards MAL XML
+  export totals and non-JPEG poster cache loading.

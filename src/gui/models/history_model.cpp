@@ -23,6 +23,7 @@
 #include <anitomy.hpp>
 #include <anitomy/detail/keyword.hpp>  // don't try this at home
 #include <ranges>
+#include <algorithm>
 
 #include "base/string.hpp"
 #include "media/anime_db.hpp"
@@ -32,10 +33,12 @@
 
 namespace gui {
 
-HistoryModel::HistoryModel(QObject* parent) : QAbstractListModel(parent) {}
+HistoryModel::HistoryModel(QObject* parent) : QAbstractListModel(parent) {
+  refreshRows();
+}
 
 int HistoryModel::rowCount(const QModelIndex&) const {
-  return anime::history.items().size();
+  return rows_.size();
 }
 
 int HistoryModel::columnCount(const QModelIndex&) const {
@@ -47,7 +50,7 @@ QVariant HistoryModel::data(const QModelIndex& index, int role) const {
 
   switch (role) {
     case Qt::DisplayRole: {
-      const auto& historyItem = anime::history.items().at(index.row());
+      const auto& historyItem = itemAt(index.row());
       const auto item = anime::db.item(historyItem.anime_id);
       switch (index.column()) {
         case COLUMN_TITLE:
@@ -113,7 +116,52 @@ QVariant HistoryModel::headerData(int section, Qt::Orientation orientation, int 
 
 void HistoryModel::reset() {
   beginResetModel();
+  refreshRows();
   endResetModel();
+}
+
+void HistoryModel::sort(int column, Qt::SortOrder order) {
+  emit layoutAboutToBeChanged();
+  const auto descending = order == Qt::DescendingOrder;
+  std::stable_sort(rows_.begin(), rows_.end(), [column, descending](int lhsRow, int rhsRow) {
+    const auto& lhs = anime::history.items().at(lhsRow);
+    const auto& rhs = anime::history.items().at(rhsRow);
+    int comparison = 0;
+    switch (column) {
+      case COLUMN_TITLE: {
+        const auto lhsAnime = anime::db.item(lhs.anime_id);
+        const auto rhsAnime = anime::db.item(rhs.anime_id);
+        const auto lhsTitle = lhsAnime ? QString::fromStdString(lhsAnime->titles.romaji) : QString{};
+        const auto rhsTitle = rhsAnime ? QString::fromStdString(rhsAnime->titles.romaji) : QString{};
+        comparison = QString::compare(lhsTitle, rhsTitle, Qt::CaseInsensitive);
+        break;
+      }
+      case COLUMN_DETAILS:
+        comparison = lhs.episode < rhs.episode ? -1 : (lhs.episode > rhs.episode ? 1 : 0);
+        break;
+      case COLUMN_MODIFIED:
+      default:
+        comparison = QString::fromStdString(lhs.time).compare(QString::fromStdString(rhs.time));
+        break;
+    }
+    return descending ? comparison > 0 : comparison < 0;
+  });
+  emit layoutChanged();
+}
+
+anime::HistoryItem HistoryModel::itemAt(int row) const {
+  return anime::history.items().at(sourceRow(row));
+}
+
+int HistoryModel::sourceRow(int row) const {
+  if (row < 0 || row >= rows_.size()) return row;
+  return rows_.at(row);
+}
+
+void HistoryModel::refreshRows() {
+  rows_.clear();
+  rows_.reserve(anime::history.items().size());
+  for (int i = 0; i < anime::history.items().size(); ++i) rows_.push_back(i);
 }
 
 }  // namespace gui

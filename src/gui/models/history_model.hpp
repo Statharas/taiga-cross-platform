@@ -21,6 +21,8 @@
 #include <QAbstractListModel>
 #include <QList>
 
+#include "media/anime_history.hpp"
+
 namespace gui {
 
 class HistoryModel final : public QAbstractListModel {
@@ -42,8 +44,16 @@ public:
   int columnCount(const QModelIndex& parent = {}) const override;
   QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
   QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+  void sort(int column, Qt::SortOrder order = Qt::AscendingOrder) override;
 
+  anime::HistoryItem itemAt(int row) const;
   void reset();
+
+private:
+  int sourceRow(int row) const;
+  void refreshRows();
+
+  QList<int> rows_;
 };
 
 }  // namespace gui

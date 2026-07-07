@@ -154,19 +154,19 @@ Recently aligned:
 - Enter and numpad Enter trigger the same download/open path as double-click.
 - Return in the shared shell search box submits the configured torrent search
   feed URL and replaces the torrent list with those results.
+- Structured filters now support all/any multi-condition rules, anime-ID limits,
+  v1-style text and numeric operators, and discard hide/deactivate options.
 
 ## Remaining translation gaps
 
-The largest remaining gap is not the table. It is the missing v1 aggregator
-model.
+The largest remaining gap is not the table. It is the remaining v1 aggregator
+and client-launch behavior.
 
 Needed v2 pieces:
 
 - A fuller `TorrentAggregator` core object equivalent to v1 `track::aggregator`
   would still make the code easier to reason about; the current functionality is
   split between `track::torrent` and `TorrentsWidget`.
-- Full feed-filter condition/action/operator parity with v1, beyond the current
-  named/default filters and JSON-backed settings UI.
 - Column-specific sort comparators for episode ranges, file size, S/L/D counts,
   and RFC822 dates.
 - Custom client path/app-mode launch verification on Linux.

@@ -31,6 +31,7 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QHeaderView>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QJsonArray>
@@ -49,6 +50,7 @@
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QStackedWidget>
+#include <QTableWidget>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QUrl>
@@ -261,6 +263,21 @@ QJsonArray torrentFilters() {
 
 QString torrentFilterSummary(const QJsonObject& filter) {
   const auto action = filter.value("action").toString();
+  const auto conditions = filter.value("conditions").toArray();
+  if (!conditions.isEmpty()) {
+    QStringList parts;
+    for (const auto& value : conditions) {
+      const auto condition = value.toObject();
+      parts.push_back(QObject::tr("%1 %2 \"%3\"")
+                          .arg(condition.value("field").toString("any"),
+                               condition.value("match").toString("contains"),
+                               condition.value("value").toString()));
+    }
+    return QObject::tr("%1 when %2: %3")
+        .arg(action,
+             filter.value("logic").toString("all") == "any" ? QObject::tr("any") : QObject::tr("all"),
+             parts.join("; "));
+  }
   const auto field = filter.value("field").toString();
   const auto match = filter.value("match").toString();
   const auto value = filter.value("value").toString();
@@ -310,40 +327,114 @@ bool editTorrentFilter(QWidget* parent, QListWidgetItem* item) {
   auto* layout = new QVBoxLayout(&dialog);
   auto* form = new QFormLayout();
   auto* name = new QLineEdit(filter.value("name").toString(), &dialog);
+  QStringList animeIdValues;
+  for (const auto& value : filter.value("animeIds").toArray()) {
+    animeIdValues.push_back(QString::number(value.toInt()));
+  }
+  auto* animeIds = new QLineEdit(animeIdValues.join(", "), &dialog);
   auto* action = new QComboBox(&dialog);
   action->addItem(QObject::tr("Select"), "select");
   action->addItem(QObject::tr("Prefer"), "prefer");
   action->addItem(QObject::tr("Discard"), "discard");
   action->addItem(QObject::tr("Discard and deactivate"), "discard_inactive");
-  auto* field = new QComboBox(&dialog);
-  field->addItem(QObject::tr("Any text"), "any");
-  field->addItem(QObject::tr("Anime title"), "title");
-  field->addItem(QObject::tr("Filename"), "filename");
-  field->addItem(QObject::tr("Description"), "description");
-  field->addItem(QObject::tr("Fansub group"), "group");
-  field->addItem(QObject::tr("Video"), "video");
-  field->addItem(QObject::tr("Category"), "category");
-  field->addItem(QObject::tr("Source"), "source");
-  auto* match = new QComboBox(&dialog);
-  match->addItem(QObject::tr("contains"), "contains");
-  match->addItem(QObject::tr("equals"), "equals");
-  match->addItem(QObject::tr("matches regex"), "regex");
-  auto* value = new QLineEdit(filter.value("value").toString(), &dialog);
+  action->addItem(QObject::tr("Discard and hide"), "discard_hidden");
+  auto* option = new QComboBox(&dialog);
+  option->addItem(QObject::tr("Default"), "default");
+  option->addItem(QObject::tr("Deactivate discarded items"), "deactivate");
+  option->addItem(QObject::tr("Hide discarded items"), "hide");
+  auto* logic = new QComboBox(&dialog);
+  logic->addItem(QObject::tr("All conditions"), "all");
+  logic->addItem(QObject::tr("Any condition"), "any");
+  auto* conditions = new QTableWidget(&dialog);
+  conditions->setColumnCount(3);
+  conditions->setHorizontalHeaderLabels({QObject::tr("Field"), QObject::tr("Condition"),
+                                         QObject::tr("Value")});
+  conditions->horizontalHeader()->setStretchLastSection(true);
+  conditions->verticalHeader()->hide();
+  conditions->setSelectionBehavior(QAbstractItemView::SelectRows);
 
   const auto setCombo = [](QComboBox* combo, const QString& data) {
     const auto index = combo->findData(data);
     if (index >= 0) combo->setCurrentIndex(index);
   };
+  const auto addConditionRow = [conditions](const QJsonObject& condition) {
+    const auto row = conditions->rowCount();
+    conditions->insertRow(row);
+
+    auto* field = new QComboBox(conditions);
+    field->addItem(QObject::tr("Any text"), "any");
+    field->addItem(QObject::tr("Anime title"), "title");
+    field->addItem(QObject::tr("Filename"), "filename");
+    field->addItem(QObject::tr("Description"), "description");
+    field->addItem(QObject::tr("Fansub group"), "group");
+    field->addItem(QObject::tr("Video"), "video");
+    field->addItem(QObject::tr("Category"), "category");
+    field->addItem(QObject::tr("Source"), "source");
+    field->addItem(QObject::tr("Episode number"), "episode");
+    field->addItem(QObject::tr("Size"), "size");
+
+    auto* match = new QComboBox(conditions);
+    match->addItem(QObject::tr("contains"), "contains");
+    match->addItem(QObject::tr("does not contain"), "notcontains");
+    match->addItem(QObject::tr("equals"), "equals");
+    match->addItem(QObject::tr("does not equal"), "notequals");
+    match->addItem(QObject::tr("begins with"), "beginswith");
+    match->addItem(QObject::tr("ends with"), "endswith");
+    match->addItem(QObject::tr("greater than"), "gt");
+    match->addItem(QObject::tr("greater than or equal to"), "ge");
+    match->addItem(QObject::tr("less than"), "lt");
+    match->addItem(QObject::tr("less than or equal to"), "le");
+    match->addItem(QObject::tr("matches regex"), "regex");
+
+    auto* value = new QLineEdit(condition.value("value").toString(), conditions);
+
+    const auto setConditionCombo = [](QComboBox* combo, const QString& data) {
+      const auto index = combo->findData(data);
+      if (index >= 0) combo->setCurrentIndex(index);
+    };
+    setConditionCombo(field, condition.value("field").toString("any"));
+    setConditionCombo(match, condition.value("match").toString("contains"));
+    conditions->setCellWidget(row, 0, field);
+    conditions->setCellWidget(row, 1, match);
+    conditions->setCellWidget(row, 2, value);
+  };
+
   setCombo(action, filter.value("action").toString("select"));
-  setCombo(field, filter.value("field").toString("any"));
-  setCombo(match, filter.value("match").toString("contains"));
+  setCombo(option, filter.value("option").toString("default"));
+  setCombo(logic, filter.value("logic").toString("all"));
+
+  const auto existingConditions = filter.value("conditions").toArray();
+  if (!existingConditions.isEmpty()) {
+    for (const auto& value : existingConditions) addConditionRow(value.toObject());
+  } else {
+    addConditionRow(QJsonObject{{"field", filter.value("field").toString("any")},
+                                {"match", filter.value("match").toString("contains")},
+                                {"value", filter.value("value").toString()}});
+  }
 
   form->addRow(QObject::tr("Name"), name);
+  form->addRow(QObject::tr("Limit to anime IDs"), animeIds);
   form->addRow(QObject::tr("Action"), action);
-  form->addRow(QObject::tr("Field"), field);
-  form->addRow(QObject::tr("Condition"), match);
-  form->addRow(QObject::tr("Value"), value);
+  form->addRow(QObject::tr("Discard option"), option);
+  form->addRow(QObject::tr("Matching"), logic);
   layout->addLayout(form);
+  layout->addWidget(conditions);
+
+  auto* conditionButtons = new QWidget(&dialog);
+  auto* conditionButtonLayout = new QHBoxLayout(conditionButtons);
+  conditionButtonLayout->setContentsMargins(0, 0, 0, 0);
+  auto* addCondition = new QPushButton(QObject::tr("Add condition"), conditionButtons);
+  auto* removeCondition = new QPushButton(QObject::tr("Remove condition"), conditionButtons);
+  conditionButtonLayout->addWidget(addCondition);
+  conditionButtonLayout->addWidget(removeCondition);
+  conditionButtonLayout->addStretch();
+  layout->addWidget(conditionButtons);
+  QObject::connect(addCondition, &QPushButton::clicked, &dialog,
+                   [addConditionRow]() { addConditionRow({}); });
+  QObject::connect(removeCondition, &QPushButton::clicked, &dialog, [conditions]() {
+    const auto row = conditions->currentRow();
+    if (row >= 0 && conditions->rowCount() > 1) conditions->removeRow(row);
+  });
 
   auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
   layout->addWidget(buttons);
@@ -352,11 +443,39 @@ bool editTorrentFilter(QWidget* parent, QListWidgetItem* item) {
 
   if (dialog.exec() != QDialog::Accepted) return false;
 
-  filter["name"] = name->text().trimmed().isEmpty() ? value->text().trimmed() : name->text().trimmed();
+  filter["name"] = name->text().trimmed();
   filter["action"] = action->currentData().toString();
-  filter["field"] = field->currentData().toString();
-  filter["match"] = match->currentData().toString();
-  filter["value"] = value->text().trimmed();
+  filter["option"] = option->currentData().toString();
+  filter["logic"] = logic->currentData().toString();
+  QJsonArray savedAnimeIds;
+  for (const auto& part : animeIds->text().split(",", Qt::SkipEmptyParts)) {
+    bool ok = false;
+    const auto id = part.trimmed().toInt(&ok);
+    if (ok && id > 0) savedAnimeIds.push_back(id);
+  }
+  if (savedAnimeIds.isEmpty()) {
+    filter.remove("animeIds");
+  } else {
+    filter["animeIds"] = savedAnimeIds;
+  }
+  QJsonArray savedConditions;
+  for (int row = 0; row < conditions->rowCount(); ++row) {
+    auto* field = qobject_cast<QComboBox*>(conditions->cellWidget(row, 0));
+    auto* match = qobject_cast<QComboBox*>(conditions->cellWidget(row, 1));
+    auto* value = qobject_cast<QLineEdit*>(conditions->cellWidget(row, 2));
+    if (!field || !match || !value || value->text().trimmed().isEmpty()) continue;
+    savedConditions.push_back(QJsonObject{{"field", field->currentData().toString()},
+                                          {"match", match->currentData().toString()},
+                                          {"value", value->text().trimmed()}});
+  }
+  if (savedConditions.isEmpty()) return false;
+  filter.remove("field");
+  filter.remove("match");
+  filter.remove("value");
+  filter["conditions"] = savedConditions;
+  if (filter.value("name").toString().isEmpty()) {
+    filter["name"] = savedConditions.first().toObject().value("value").toString();
+  }
   item->setText(filter.value("name").toString());
   item->setData(Qt::UserRole, filter);
   item->setToolTip(torrentFilterSummary(filter));

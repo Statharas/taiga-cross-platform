@@ -212,6 +212,61 @@ int main(int argc, char* argv[]) {
   require(structuredTorrents.front().state == track::torrent::ItemState::Preferred,
           "Structured torrent filters should select and prefer matching rows");
 
+  taiga::settings.setStringValue("rss.torrent.filters.itemsJson", R"([
+    {"name":"Multi-condition exact group","enabled":true,"action":"select","logic":"all","conditions":[
+      {"field":"group","match":"equals","value":"Group"},
+      {"field":"video","match":"notcontains","value":"480p"}
+    ]},
+    {"name":"Hide low resolution","enabled":true,"action":"discard","option":"hide","logic":"any","conditions":[
+      {"field":"video","match":"equals","value":"480p"},
+      {"field":"filename","match":"beginswith","value":"RAW"}
+    ]}
+  ])");
+  const auto multiConditionTorrents = track::torrent::parseFeed(R"(
+    <rss><channel><title>Nyaa</title>
+      <item><title>[Group] Example Anime - 03 [720p]</title><link>magnet:?xt=urn:btih:multi1</link></item>
+      <item><title>[Group] Example Anime - 04 [480p]</title><link>magnet:?xt=urn:btih:multi2</link></item>
+    </channel></rss>
+  )");
+  require(multiConditionTorrents.size() == 2, "Multi-condition torrent fixture did not parse");
+  require(multiConditionTorrents.at(0).state == track::torrent::ItemState::Selected,
+          "All-condition torrent filter should select matching rows");
+  require(multiConditionTorrents.at(1).state == track::torrent::ItemState::DiscardedHidden,
+          "Discard hide option should map to a hidden discarded torrent row");
+
+  Anime otherAnime;
+  otherAnime.id = 9002;
+  otherAnime.status = anime::Status::Airing;
+  otherAnime.titles.romaji = "Other Anime";
+  anime::db.updateItem(otherAnime);
+  track::recognition::cache()->update(otherAnime);
+  ListEntry otherEntry;
+  otherEntry.id = 9002;
+  otherEntry.anime_id = 9002;
+  otherEntry.status = anime::list::Status::Watching;
+  anime::db.updateEntry(otherEntry);
+  taiga::settings.setStringValue("rss.torrent.filters.itemsJson", R"([
+    {"name":"Only Example Anime","enabled":true,"action":"discard","animeIds":[9001],"conditions":[
+      {"field":"video","match":"equals","value":"720p"}
+    ]}
+  ])");
+  const auto animeLimitedTorrents = track::torrent::parseFeed(R"(
+    <rss><channel><title>Nyaa</title>
+      <item><title>[Group] Example Anime - 05 [720p]</title><link>magnet:?xt=urn:btih:limit1</link></item>
+      <item><title>[Group] Other Anime - 05 [720p]</title><link>magnet:?xt=urn:btih:limit2</link></item>
+    </channel></rss>
+  )");
+  auto limitedState = [](const auto& items, const QString& title) {
+    for (const auto& item : items) {
+      if (item.title == title) return item.state;
+    }
+    return track::torrent::ItemState::Archived;
+  };
+  require(limitedState(animeLimitedTorrents, "Example Anime") == track::torrent::ItemState::Discarded,
+          "Anime-limited torrent filter should apply to listed anime IDs");
+  require(limitedState(animeLimitedTorrents, "Other Anime") == track::torrent::ItemState::Normal,
+          "Anime-limited torrent filter should ignore other anime IDs");
+
   taiga::settings.setStringValue("rss.torrent.filters.itemsJson", {});
 
   const auto libraryPath = dataDir.filePath("library");
@@ -308,6 +363,11 @@ int main(int argc, char* argv[]) {
   require(magnetPlan->magnet, "Torrent magnet preference was ignored");
   require(magnetPlan->url.scheme() == "magnet", "Torrent magnet URL changed");
   taiga::settings.setBoolValue("rss.torrent.useMagnet", false);
+
+  track::torrent::archiveItems({planItem});
+  require(track::torrent::archiveCount() == 1, "Torrent archive count changed");
+  require(QFile::remove(track::torrent::archivePath()), "Torrent archive clear path failed");
+  require(track::torrent::archiveCount() == 0, "Torrent archive clear did not remove archived items");
 
   Anime unknownEpisodeAnime;
   unknownEpisodeAnime.episode_count = anime::kUnknownEpisodeCount;

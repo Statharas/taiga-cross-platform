@@ -50,7 +50,7 @@ source of truth is the original code under `src/v1`, especially:
 | Anime List Enter | Simulates configured double-click | Implemented for list and card views. |
 | Anime List Delete | `EditDelete()` | Implemented as remove-from-list with confirmation. |
 | Anime List right-click | `RightClick`, `Edit`, `EditScore` menus | Mostly implemented through shared `MediaMenu`; header context menu and score-cell-specific popup still need parity work. |
-| History right-click | `HistoryList` menu | Partially implemented: details and clear history. |
+| History right-click | `HistoryList` menu | Partially implemented: details and clear history; sorted views now resolve the correct backing history item. |
 | History double-click | Opens item details | Implemented through the details action path where history entries resolve an anime item. |
 | Seasons refresh | `sync::GetSeason(current_season)` | Implemented for MyAnimeList, Kitsu, and AniList. |
 | Seasons right-click | `SeasonList` menu | Implemented through shared `MediaMenu`. |
@@ -59,8 +59,8 @@ source of truth is the original code under `src/v1`, especially:
 | Settings account buttons | MAL/AniList authorize, Kitsu login | Implemented. |
 | Settings library buttons | Add/remove folder, folder double-click | Implemented for UI list; full persistence/watch-folder integration needs backend verification. |
 | Settings sharing format buttons | Edit format string | Implemented. |
-| Settings torrent filter buttons | Add/edit/remove/reorder/import/export/reset | Implemented for the settings UI model with structured single-condition rules; full multi-condition parity is still a backlog item. |
-| Settings advanced/cache buttons | Refresh cache, clear selected cache data | Implemented at UI level; clear behavior depends on current cache backends. |
+| Settings torrent filter buttons | Add/edit/remove/reorder/import/export/reset | Implemented for the settings UI model with structured all/any multi-condition rules and anime-ID limits. |
+| Settings advanced/cache buttons | Refresh cache, clear selected cache data | Implemented at UI level; history/archive and poster-format paths have regression coverage. |
 
 ## Screen map
 
@@ -100,7 +100,7 @@ Qt status:
 - Anime List header context menu and column visibility/order need a dedicated pass.
 - Seasons group/sort/view names are implemented but not yet persisted to v1-compatible settings keys.
 - Search routes exist for MyAnimeList, Kitsu, and AniList; they still need authenticated live-provider fixtures.
-- Torrents need full quick-filter menu parity and client launch behavior verification on Linux.
+- Torrents need custom client launch behavior verification on Linux.
 - Some shared anime menu actions depend on library folder detection, media playback, or service update calls and need live workflow testing.
 - Custom Qt surfaces should be checked for hover/selection states against the original Win32 behavior.
 

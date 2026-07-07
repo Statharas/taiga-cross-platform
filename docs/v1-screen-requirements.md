@@ -77,11 +77,11 @@ Primary v1 sources:
 
 | Requirement | V1 behavior | V2 status | Evidence / action |
 | --- | --- | --- | --- |
-| History table | Watched item rows with anime, episode, date/time, player info. | Partial | `HistoryWidget` exists; exact column parity needs populated fixtures. |
+| History table | Watched item rows with anime, episode, date/time, player info. | Partial | `HistoryWidget` exists and sorted-row actions use the correct item; exact column parity needs populated fixtures. |
 | Double-click | Opens details for matching anime. | Partial | Depends on resolved anime IDs. |
 | Context menu | Details, search, delete/clear history actions. | Partial | Some actions exist; menu inventory needs direct v1 comparison. |
 | History counter | Sidebar history counter refreshes. | Missing | V2 sidebar does not yet show v1 counter behavior. |
-| Clear history | Deletes selected/all history. | Partial | UI exists; destructive path needs temp-profile test. |
+| Clear history | Deletes selected/all history. | Partial | UI exists; destructive backend is covered for history/archive paths; selected-history deletion still needs menu parity. |
 
 ## Statistics
 
@@ -90,7 +90,7 @@ Primary v1 sources:
 | List totals | Counts by status and totals. | Done | `StatisticsWidget`. |
 | Watched time | Episodes/time watched summaries. | Partial | UI exists; needs fixture parity against v1 formulas. |
 | Score distribution | Score buckets/averages. | Partial | Functional, not pixel-identical. |
-| Cache stats | Database, image, torrent, history counts/sizes. | Partial | Paths differ cross-platform; cache calculations need tests. |
+| Cache stats | Database, image, torrent, history counts/sizes. | Partial | Paths differ cross-platform; poster cache formats and archive clearing are covered; full cache-clear workflow still needs UI-driver tests. |
 
 ## Search
 
@@ -120,13 +120,13 @@ Primary v1 sources:
 | --- | --- | --- | --- |
 | Toolbar | Check new torrents, download marked, discard all, settings. | Done | `TorrentsWidget`, parity tests. |
 | Shared search submit | Enter searches configured torrent search URL and replaces feed results. | Done | `taiga-ui-interaction-driver-tests`. |
-| Fetch headers/timeouts | RSS Accept header, user-agent, 30 second timeout, proxy/cert settings. | Partial | Headers, timeout, and proxy settings are applied; certificate revocation/no-revoke mapping remains. |
+| Fetch headers/timeouts | RSS Accept header, user-agent, 30 second timeout, proxy/cert settings. | Partial | Headers, timeout, proxy settings, and HTTP status error messages are applied; certificate revocation/no-revoke mapping remains. |
 | TokyoToshokan failures | Cloudflare/server failures such as `525` must be reported as server errors, not masked as local timeout. | Partial | Timeout is fixed; error wording should include HTTP status when provided. |
 | Ctrl-refresh | Loads cached `feed.xml`. | Done | Needs driver/manual shortcut test. |
 | Feed cache | Saves successful feed per source. | Done | `track::torrent`. |
 | Source parsers | TokyoToshokan, Nyaa, AnimeTosho, AniDex, Minglong, SubsPlease. | Partial | Implemented core cases; needs real-feed fixtures. |
 | Recognition | Anitomy recognition extracts title, episode, group, resolution, anime ID. | Done | `taiga-core-tests`. |
-| Filters | Select/prefer/discard rules, hidden/inactive/archive states, full condition editor. | Partial | Named/default filters include watched and locally available episode discards; structured action-field-condition-value editor exists; multi-condition/operator parity remains. |
+| Filters | Select/prefer/discard rules, hidden/inactive/archive states, full condition editor. | Done | Named/default filters include watched/local-availability discards; structured filters support all/any multi-condition rules, anime-ID limits, operators, and hide/deactivate options. |
 | Groups/columns | Anime/Batch/Other groups and all v1 columns. | Done | `TorrentsWidget`, parity tests. |
 | Checkbox range | Shift-click range in same group. | Done | Needs interaction test. |
 | Context menu | Download, anime info, torrent info, discard, discard anime, prefer group, more torrents, search service. | Partial | Most actions exist; anime-info-specific action and exact menu order need refinement. |
@@ -140,9 +140,9 @@ Primary v1 sources:
 | Services pages | Main/MAL/Kitsu/AniList auth and account controls. | Partial | UI exists; live auth flows need tests. |
 | Library page | Folder list, add/remove, drag/drop, monitor checkbox. | Partial | UI exists; real watcher/scanner path needs backend tests. |
 | Application pages | List actions/appearance/progress, startup/tray/links. | Partial | UI exists; startup/tray platform behaviors need Linux-specific implementation. |
-| Recognition page | Media players, streaming media, ignored strings, interval, folders. | Partial | UI exists; Anisthesia bridge still evolving. |
+| Recognition page | Media players, streaming media, ignored strings, interval, folders. | Partial | UI exists; media-player and streaming toggles now feed the Anisthesia bridge. Live browser/player recognition still needs platform testing. |
 | Sharing pages | Discord, HTTP POST, mIRC/DDE settings and format editors. | Partial/Deferred | HTTP/Discord need runtime tests; mIRC DDE is Windows-specific and needs cross-platform strategy. |
-| Torrent pages | Discovery, downloads, filters. | Partial | UI exists; structured filter editor exists; custom client launch and full v1 multi-condition parity remain. |
+| Torrent pages | Discovery, downloads, filters. | Partial | UI exists; multi-condition structured filter editor exists; custom client launch still needs Linux workflow validation. |
 | Advanced pages | Advanced key/value settings and cache clear. | Partial | UI exists; clear paths need temp-profile tests. |
 
 ## Auxiliary dialogs
@@ -150,8 +150,8 @@ Primary v1 sources:
 | Requirement | V1 behavior | V2 status | Evidence / action |
 | --- | --- | --- | --- |
 | Anime information / media dialog | Details/list editing/external links/poster. | Partial | `MediaDialog` exists and AniList edits save through GraphQL; field-by-field v1 comparison still needed. |
-| Feed filter dialog | Full filter editor with conditions/actions/operators. | Partial | Current settings UI supports add/edit for single structured condition rows. |
-| Feed condition dialog | Add/edit a single torrent filter condition. | Partial | Action, field, match operator, and value are editable; every v1 operator/action still needs direct mapping. |
+| Feed filter dialog | Full filter editor with conditions/actions/operators. | Done | Settings UI supports all/any multi-condition rows, anime-ID limits, operators, and discard options. |
+| Feed condition dialog | Add/edit a single torrent filter condition. | Done | Action, field, operator, and value are editable in the Qt filter editor. |
 | Format string dialog | Edit HTTP/mIRC/notification templates. | Partial | Format editor UI exists; variable preview/testing needs parity check. |
 | Update dialog | Check/update workflow. | Partial | Cross-platform release-page check is available; apply/download workflow is not ported. |
 | About dialog | About/support/donate links. | Done | `AboutDialog`. |

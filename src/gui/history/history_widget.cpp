@@ -68,9 +68,9 @@ void HistoryWidget::showContextMenu() const {
   if (!index.isValid()) return;
 
   const auto row = index.row();
-  if (row < 0 || row >= anime::history.items().size()) return;
+  if (row < 0 || row >= m_model->rowCount()) return;
 
-  const auto historyItem = anime::history.items().at(row);
+  const auto historyItem = m_model->itemAt(row);
   auto* menu = new QMenu(m_view);
   menu->setAttribute(Qt::WA_DeleteOnClose);
 

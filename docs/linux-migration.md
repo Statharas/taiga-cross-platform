@@ -38,4 +38,4 @@ This branch starts the Linux migration by separating Taiga's reusable C++ code f
 
 1. Move session state types out of `gui` so `taiga/session.cpp` can join `taiga-core`.
 2. Move list-status formatting out of `gui/utils/format.cpp` so list export can join `taiga-core`.
-3. Expand Linux media detection beyond MPRIS if browser-specific recognition becomes a requirement.
+3. Live-test Linux media detection across native players and browser/streaming providers.

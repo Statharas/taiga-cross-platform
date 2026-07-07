@@ -53,15 +53,16 @@ plugin.
 2. Anime List keyboard triggers: Enter, Delete, Ctrl+A, configured double-click
    and middle-click actions.
 3. Torrent checkbox interactions: click, Shift-click range, context menu actions,
-   Ctrl-refresh cache reload.
+   Ctrl-refresh cache reload, and anime-ID-limited filter behavior.
 4. Settings page navigation and persistence: change representative controls,
    reopen settings, assert values persist.
 5. Media dialog edit workflow: open details, change status/progress/score, save,
    assert database entry changes.
 6. Seasons toolbar: year descending, season change, view/group/sort actions,
    refresh callback success/failure states.
-7. Temporary-profile destructive flows: clear history/cache/torrent archive
-   without touching the user's real data.
+7. Temporary-profile destructive UI flows: clear history/cache/torrent archive
+   without touching the user's real data. Core archive clearing and poster cache
+   format loading are already covered by smoke tests.
 8. Mocked network responses for service search, season fetch, torrent feeds, and
    TokyoToshokan-style `525`/Cloudflare errors.
 

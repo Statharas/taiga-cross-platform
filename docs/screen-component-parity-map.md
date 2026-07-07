@@ -65,8 +65,8 @@ Sources used for v1 comparison:
 | --- | --- | --- | --- |
 | History table | Watched anime/episode/group/date rows | Implemented | Verify exact column set against populated v1 history. |
 | Double click | Opens resolved anime details | Implemented where entry resolves | Need fixture with known history entries. |
-| Right-click menu | Details and history management actions | Partial | Compare every `HistoryList` menu action after backend history import. |
-| Clear history | Removes history entries | Implemented UI | Needs destructive-action workflow test with temp profile. |
+| Right-click menu | Details and history management actions | Partial | Sorted views resolve the correct backing item; compare every `HistoryList` menu action after backend history import. |
+| Clear history | Removes history entries | Implemented UI | Backend clear path is covered; UI-driver destructive flow remains. |
 
 ## Statistics
 
@@ -120,7 +120,7 @@ Sources used for v1 comparison:
 | Download queue | Sort marked items by configured order | Implemented | Core test covers episode order. |
 | Magnet links | Opens magnet when setting is enabled | Implemented | Core test covers preference. |
 | `.torrent` files | Downloads, saves, archives, optionally opens app | Implemented | Custom client path/app mode needs Linux workflow testing. |
-| Filters | Named defaults plus JSON-backed custom list and structured Add/Edit dialog | Partial | Multi-condition v1 operator/action matrix still needs a dedicated pass. |
+| Filters | Named defaults plus JSON-backed custom list and structured Add/Edit dialog | Implemented | All/any multi-condition rules, anime-ID limits, operators, hide/deactivate, and defaults are implemented. |
 
 ## Settings
 
@@ -133,15 +133,15 @@ Sources used for v1 comparison:
 | Library/Folders | Folder list, add/remove, drag/drop hint, monitor checkbox | Implemented UI | Filesystem watcher scan needs backend workflow test. |
 | Application/Anime list | Double/middle click, title language, highlight, progress options | Implemented | Check action parity with Anime List. |
 | Application/General | Startup, updates, scan at startup, tray, external links | Implemented UI | Windows-only startup label should remain platform-neutral where possible. |
-| Recognition | Media detection interval, ignored strings, folders | Implemented UI | Anisthesia backend behavior is platform bridge dependent. |
+| Recognition | Media detection interval, ignored strings, folders | Implemented UI | Media-player and streaming toggles feed Anisthesia; live browser/player recognition still needs platform testing. |
 | Sharing/Discord | Rich presence and display options | Implemented UI | Discord IPC backend needs Linux runtime validation. |
 | Sharing/HTTP | POST URL and format string | Implemented UI | Request dispatch needs end-to-end test. |
 | Sharing/mIRC | Message, server, channel, action options | Implemented UI | Windows DDE/mIRC behavior needs platform replacement strategy. |
 | Torrents/Discovery | Source/search URLs, auto-check, action | Implemented | Auto-check now exists in Torrents widget. |
 | Torrents/Downloads | Queue sort, download folder, open app, magnet options | Implemented UI/core | Custom client launch still needs Linux workflow test. |
-| Torrents/Filters | Enable, archive limit, add/edit/remove/reorder/import/export/reset | Implemented UI model | Single-condition structured rules are implemented; full v1 multi-condition parity remains. |
+| Torrents/Filters | Enable, archive limit, add/edit/remove/reorder/import/export/reset | Implemented UI model | All/any multi-condition structured rules and anime-ID limits are implemented. |
 | Advanced/Settings | Editable advanced key/value list | Implemented | Keep key names mapped in `settings-migration-map.md`. |
-| Advanced/Cache | Clear history/images/torrents/torrent history | Implemented UI | Verify deletion paths with temporary profile. |
+| Advanced/Cache | Clear history/images/torrents/torrent history | Implemented UI | Poster format and archive clear paths are covered; full UI-driver destructive flow remains. |
 
 ## Shared dialogs and menus
 
@@ -157,8 +157,10 @@ Sources used for v1 comparison:
 - `taiga-main-ui-parity-tests` covers the global shell, page inventory, sidebar,
   status icon column, torrent toolbar/table inventory, and Now Playing idle
   behavior.
-- `taiga-settings-dialog-tests` covers settings section/page inventory and key
-  controls from every v1 settings page.
+- `taiga-settings-dialog-tests` covers settings section/page inventory, MAL XML
+  export totals, non-JPEG poster cache loading, and key controls from every v1
+  settings page.
 - `taiga-core-tests` covers service parsers, season handoff, unknown episode
   progress, torrent RSS parsing, Nyaa metadata, Anitomy torrent recognition,
-  torrent queue sort, and magnet preference.
+  default and multi-condition torrent filters, archive clearing, torrent queue
+  sort, and magnet preference.

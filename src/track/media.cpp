@@ -19,6 +19,7 @@
 #include "media.hpp"
 
 #include <QFileInfo>
+#include <QRegularExpression>
 
 #include "base/file.hpp"
 #include "media/anime_db.hpp"
@@ -27,6 +28,13 @@
 #include "track/recognition.hpp"
 
 namespace {
+
+QString slug(QString value) {
+  value = value.toLower();
+  value.replace(QRegularExpression("[^a-z0-9]+"), ".");
+  value.replace(QRegularExpression("^\\.|\\.$"), "");
+  return value;
+}
 
 std::optional<track::Episode> episodeFromMediaInfo(const anisthesia::MediaInfo& mediaInfo) {
   auto episode = [&mediaInfo]() {
@@ -86,13 +94,23 @@ bool Detection::init() {
 void Detection::poll() {
   if (players_.empty()) return;
 
-  // @TODO: Enable web browser detection
   std::vector<player_t> players;
-  for (const auto player : players_) {
-    if (player.type != anisthesia::PlayerType::WebBrowser) {
-      players.emplace_back(player);
+  for (const auto& player : players_) {
+    const auto name = QString::fromStdString(player.name);
+    if (player.type == anisthesia::PlayerType::WebBrowser) {
+      if (!taiga::settings.boolValue("recognition.streaming.enabled", false)) continue;
+      if (!taiga::settings.boolValue(QString("recognition.streaming.providers.%1").arg(slug(name)), true)) {
+        continue;
+      }
+    } else {
+      if (!taiga::settings.boolValue("recognition.mediaPlayers.enabled", true)) continue;
+      if (!taiga::settings.boolValue(QString("recognition.mediaPlayers.%1").arg(slug(name)), true)) {
+        continue;
+      }
     }
+    players.emplace_back(player);
   }
+  if (players.empty()) return;
 
   static const auto media_proc = [](const anisthesia::MediaInfo&) {
     return true;  // Accept all media

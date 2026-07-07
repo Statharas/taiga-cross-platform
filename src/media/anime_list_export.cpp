@@ -47,7 +47,9 @@ bool exportAsMarkdown(const std::string& path) {
   }
 
   for (auto& [status, list] : status_lists) {
-    std::ranges::sort(list);  // @TODO: case insensitive
+    std::ranges::sort(list, [](const auto& lhs, const auto& rhs) {
+      return QString::fromStdString(lhs).compare(QString::fromStdString(rhs), Qt::CaseInsensitive) < 0;
+    });
   }
 
   QFile file(QString::fromStdString(path));
@@ -117,15 +119,20 @@ bool exportAsXml(const std::string& path) {
 
   xml.writeStartElement("myinfo");
   xml.writeNumberElement("user_id", 0);
-  xml.writeTextElement("user_name", "");          // @TODO
+  xml.writeTextElement("user_name", "");
   xml.writeNumberElement("user_export_type", 1);  // anime
   xml.writeNumberElement("user_total_anime", anime::db.entries().count());
-  xml.writeNumberElement("user_total_watching", 0);     // @TODO: anime::list::Status::Watching
-  xml.writeNumberElement("user_total_completed", 0);    // @TODO: anime::list::Status::Completed
-  xml.writeNumberElement("user_total_onhold", 0);       // @TODO: anime::list::Status::OnHold
-  xml.writeNumberElement("user_total_dropped", 0);      // @TODO: anime::list::Status::Dropped
-  xml.writeNumberElement("user_total_plantowatch", 0);  // @TODO: anime::list::Status::PlanToWatch
-  xml.writeEndElement();                                // myinfo
+  const auto countStatus = [](anime::list::Status status) {
+    return std::ranges::count_if(anime::db.entries(), [status](const auto& entry) {
+      return entry.status == status;
+    });
+  };
+  xml.writeNumberElement("user_total_watching", countStatus(anime::list::Status::Watching));
+  xml.writeNumberElement("user_total_completed", countStatus(anime::list::Status::Completed));
+  xml.writeNumberElement("user_total_onhold", countStatus(anime::list::Status::OnHold));
+  xml.writeNumberElement("user_total_dropped", countStatus(anime::list::Status::Dropped));
+  xml.writeNumberElement("user_total_plantowatch", countStatus(anime::list::Status::PlanToWatch));
+  xml.writeEndElement();  // myinfo
 
   for (const auto& entry : anime::db.entries()) {
     const auto item = anime::db.item(entry.anime_id);
@@ -140,7 +147,7 @@ bool exportAsXml(const std::string& path) {
     xml.writeTextElement("my_finish_date", entry.date_completed.to_string());
     xml.writeTextElement("my_fansub_group", "");
     xml.writeTextElement("my_rated", "");
-    xml.writeNumberElement("my_score", entry.score);  // @TODO: translate
+    xml.writeNumberElement("my_score", entry.score / 10);
     xml.writeTextElement("my_dvd", "");
     xml.writeTextElement("my_storage", "");
     xml.writeTextElement("my_status", format_my_status(entry.status));

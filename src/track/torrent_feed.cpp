@@ -318,6 +318,8 @@ QString filterFieldValue(const Item& item, const QString& field) {
   if (lower == "description") return item.description;
   if (lower == "group") return item.group;
   if (lower == "video") return item.video;
+  if (lower == "episode") return item.episode;
+  if (lower == "size") return item.size;
   if (lower == "category") return categoryText(item.torrent_category);
   if (lower == "source") return item.source;
   return QStringList{item.title, item.filename, item.description, item.group, item.video,
@@ -331,6 +333,28 @@ bool structuredFilterMatches(const Item& item, const QJsonObject& filter) {
 
   const auto candidate = filterFieldValue(item, filter.value("field").toString("any"));
   const auto match = filter.value("match").toString("contains").toCaseFolded();
+  if (match == "notequals" || match == "not_equals") {
+    return candidate.compare(value, Qt::CaseInsensitive) != 0;
+  }
+  if (match == "beginswith" || match == "begins_with") {
+    return candidate.startsWith(value, Qt::CaseInsensitive);
+  }
+  if (match == "endswith" || match == "ends_with") {
+    return candidate.endsWith(value, Qt::CaseInsensitive);
+  }
+  if (match == "notcontains" || match == "not_contains") {
+    return !candidate.contains(value, Qt::CaseInsensitive);
+  }
+  if (match == "gt" || match == "ge" || match == "lt" || match == "le" ||
+      match == "greater" || match == "greater_or_equal" || match == "less" ||
+      match == "less_or_equal") {
+    const auto lhs = candidate.toDouble();
+    const auto rhs = value.toDouble();
+    if (match == "gt" || match == "greater") return lhs > rhs;
+    if (match == "ge" || match == "greater_or_equal") return lhs >= rhs;
+    if (match == "lt" || match == "less") return lhs < rhs;
+    return lhs <= rhs;
+  }
   if (match == "equals") return candidate.compare(value, Qt::CaseInsensitive) == 0;
   if (match == "regex") {
     return QRegularExpression{value, QRegularExpression::CaseInsensitiveOption}.match(candidate).hasMatch();
@@ -338,17 +362,56 @@ bool structuredFilterMatches(const Item& item, const QJsonObject& filter) {
   return candidate.contains(value, Qt::CaseInsensitive);
 }
 
+bool structuredFilterMatchesAllConditions(const Item& item, const QJsonObject& filter) {
+  const auto conditions = filter.value("conditions").toArray();
+  if (conditions.isEmpty()) return structuredFilterMatches(item, filter);
+
+  const auto logic = filter.value("logic").toString("all").toCaseFolded();
+  if (logic == "any") {
+    for (const auto& value : conditions) {
+      if (structuredFilterMatches(item, value.toObject())) return true;
+    }
+    return false;
+  }
+
+  for (const auto& value : conditions) {
+    if (!structuredFilterMatches(item, value.toObject())) return false;
+  }
+  return true;
+}
+
 void applyStructuredFilter(Item& item, const QJsonObject& filter) {
-  if (!structuredFilterMatches(item, filter)) return;
+  const auto animeIds = filter.value("animeIds").toArray();
+  if (!animeIds.isEmpty()) {
+    bool applies = false;
+    for (const auto& value : animeIds) {
+      if (value.toInt() == item.anime_id) {
+        applies = true;
+        break;
+      }
+    }
+    if (!applies) return;
+  }
+
+  if (!structuredFilterMatchesAllConditions(item, filter)) return;
 
   const auto name = filter.value("name").toString("Custom filter");
   const auto action = filter.value("action").toString("select").toCaseFolded();
+  const auto option = filter.value("option").toString("default").toCaseFolded();
   if (action == "prefer") {
     if (item.state == ItemState::Selected) mark(item, ItemState::Preferred, name);
   } else if (action == "discard") {
-    mark(item, ItemState::Discarded, name);
+    if (option == "hide") {
+      mark(item, ItemState::DiscardedHidden, name);
+    } else if (option == "deactivate") {
+      mark(item, ItemState::DiscardedInactive, name);
+    } else {
+      mark(item, ItemState::Discarded, name);
+    }
   } else if (action == "discard_inactive") {
     mark(item, ItemState::DiscardedInactive, name);
+  } else if (action == "discard_hidden") {
+    mark(item, ItemState::DiscardedHidden, name);
   } else {
     mark(item, ItemState::Selected, name);
   }

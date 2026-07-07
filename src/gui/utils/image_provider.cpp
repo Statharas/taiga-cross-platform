@@ -18,6 +18,7 @@
 
 #include "image_provider.hpp"
 
+#include <QBuffer>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -52,9 +53,14 @@ void ImageProvider::fetchPoster(const int id) {
     if (reply->error() != QNetworkReply::NoError) return;
 
     const auto payload = reply->readAll();
-    if (payload.isEmpty() || QImage::fromData(payload).isNull()) return;
+    QBuffer buffer;
+    buffer.setData(payload);
+    buffer.open(QIODevice::ReadOnly);
+    QImageReader payloadReader{&buffer};
+    const auto format = QString::fromLatin1(payloadReader.format()).toLower();
+    if (payload.isEmpty() || payloadReader.read().isNull()) return;
 
-    QFile file{fileName(id)};
+    QFile file{fileName(id, format.isEmpty() ? "jpg" : format)};
     QDir{}.mkpath(QFileInfo{file}.absolutePath());
     if (!file.open(QIODevice::WriteOnly)) return;
     file.write(payload);
@@ -67,7 +73,7 @@ const QPixmap* ImageProvider::loadPoster(const int id) {
     return &it.value();
   }
 
-  QImageReader reader(fileName(id));
+  QImageReader reader(cachedFileName(id));
   const QImage image = reader.read();
 
   m_pixmaps[id] = !image.isNull() ? QPixmap::fromImage(image) : QPixmap{};
@@ -83,9 +89,24 @@ void ImageProvider::reloadPoster(const int id) {
   emit posterChanged(id);
 }
 
-QString ImageProvider::fileName(const int id) const {
+QString ImageProvider::cacheDirectory() const {
   const auto path = QString::fromStdString(taiga::get_data_path());
-  return u"%1/v1/db/image/%2.jpg"_s.arg(path).arg(id);  // @TODO: Support other formats (#1191)
+  return u"%1/v1/db/image"_s.arg(path);
+}
+
+QString ImageProvider::fileName(const int id, const QString& extension) const {
+  auto normalized = extension.toLower();
+  if (normalized == "jpeg") normalized = "jpg";
+  return u"%1/%2.%3"_s.arg(cacheDirectory()).arg(id).arg(normalized);
+}
+
+QString ImageProvider::cachedFileName(const int id) const {
+  static const QStringList extensions{"jpg", "jpeg", "png", "webp"};
+  for (const auto& extension : extensions) {
+    const auto path = fileName(id, extension);
+    if (QFileInfo::exists(path)) return path;
+  }
+  return fileName(id);
 }
 
 }  // namespace gui
