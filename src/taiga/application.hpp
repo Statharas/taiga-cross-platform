@@ -21,6 +21,7 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QLockFile>
+#include <QLocalServer>
 #include <QPointer>
 
 namespace gui {
@@ -48,6 +49,7 @@ public:
 private:
   bool hasPreviousInstance();
   void initLogger() const;
+  void initSingleInstanceServer();
   void parseCommandLine();
 
   struct Options {
@@ -57,6 +59,7 @@ private:
 
   QCommandLineParser parser_;
   QLockFile instance_lock_;
+  QLocalServer instance_server_;
   QPointer<gui::MainWindow> window_;
 };
 

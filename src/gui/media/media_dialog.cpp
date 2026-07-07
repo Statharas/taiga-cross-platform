@@ -363,8 +363,7 @@ void MediaDialog::accept() {
   m_entry->notes = ui_->plainTextEditNotes->toPlainText().toStdString();
   m_entry->last_updated = QDateTime::currentSecsSinceEpoch();
 
-  // @TODO: Add to queue instead
-  anime::db.updateEntry(*m_entry);
+  taiga_sync::updateListEntry(*m_entry);
 
   QDialog::accept();
 }

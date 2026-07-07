@@ -68,6 +68,10 @@ Backend status:
 - MyAnimeList, Kitsu, and AniList list synchronization are wired to the main
   Synchronize action. MAL uses `/v2/users/{username}/animelist`; Kitsu uses
   `/api/edge/library-entries`; AniList uses GraphQL `MediaListCollection`.
+  AniList list edits now save through GraphQL `SaveMediaListEntry`.
+- Library scanning persists per-episode availability in the local database so
+  the torrent filters and progress helpers can discard episodes already present
+  in configured folders.
 - Torrent filter rows now have a Qt settings backend with add/edit/remove/move,
   import/export, and reset. The Qt Torrents page now fetches the configured RSS
   feed, applies named defaults and structured action-field-condition-value rows,

@@ -27,6 +27,7 @@
 #include "sync/kitsu_utils.hpp"
 #include "sync/myanimelist.hpp"
 #include "sync/myanimelist_utils.hpp"
+#include "media/anime_db.hpp"
 #include "media/anime_season.hpp"
 #include "taiga/network.hpp"
 #include "taiga/settings.hpp"
@@ -141,6 +142,24 @@ void synchronize(std::function<void(bool, const QString&)> done) {
       anilist::Service::instance()->fetchListEntries(std::move(done));
       break;
     case ServiceId::Unknown:
+      if (done) done(false, "No active metadata service is configured.");
+      break;
+  }
+}
+
+void updateListEntry(const anime::list::Entry& entry,
+                     std::function<void(bool, const QString&)> done) {
+  switch (currentServiceId()) {
+    case ServiceId::AniList:
+      anilist::Service::instance()->updateListEntry(entry, std::move(done));
+      break;
+    case ServiceId::MyAnimeList:
+    case ServiceId::Kitsu:
+      anime::db.updateEntry(entry);
+      if (done) done(true, "Saved list entry locally.");
+      break;
+    case ServiceId::Unknown:
+      anime::db.updateEntry(entry);
       if (done) done(false, "No active metadata service is configured.");
       break;
   }

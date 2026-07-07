@@ -23,7 +23,7 @@ source of truth is the original code under `src/v1`, especially:
 | Main toolbar | Implemented | Refresh, folder, export, settings, and right-aligned list/search field are present. |
 | Sidebar groups | Implemented | Now Playing, Anime List, History, Statistics, Search, Seasons, Torrents are in the original order. |
 | Status bar | Implemented | Main window status bar remains available through View. |
-| Shared anime context menu | Partial but reused | Anime List and Seasons now use the same Qt `MediaMenu`. Some v1 commands are still placeholders or depend on later backend work, such as full now-playing state. |
+| Shared anime context menu | Partial but reused | Anime List, Search, and Seasons now use the same Qt `MediaMenu`. Some v1 commands still depend on later backend work, such as full now-playing state. |
 | Hover feedback | In progress | Qt native widgets cover standard controls. Seasons cards now add hover feedback; remaining custom surfaces should be checked screen-by-screen. |
 
 ## Trigger map
@@ -35,8 +35,8 @@ source of truth is the original code under `src/v1`, especially:
 | File > Exit | v1 menu command | Implemented through `QApplication::quit`. |
 | Services > Synchronize | v1 menu command | Implemented through `actionSynchronize`. |
 | Services > Export > Markdown/XML | `ui::ExecuteCommand(ExportAsMarkdown/ExportAsMalXml)` | Implemented through `MainWindow::exportListAsMarkdown/exportListAsXml`. |
-| Library > Add folder | `ui::ExecuteCommand(AddFolder)` | Partially implemented: opens a folder picker; persistence/watch-folder refresh still needs a backend pass. |
-| Library > Scan available episodes | `ui::ExecuteCommand(ScanEpisodesAll)` | Implemented as a Linux scanner pass over configured library folders; persistent per-episode availability still needs a data model. |
+| Library > Add folder | `ui::ExecuteCommand(AddFolder)` | Partially implemented: opens a folder picker; watch-folder refresh still needs a backend pass. |
+| Library > Scan available episodes | `ui::ExecuteCommand(ScanEpisodesAll)` | Implemented as a Linux scanner pass over configured library folders with persisted per-episode availability. |
 | Library > Play next episode | `track::PlayNextEpisodeOfLastWatchedAnime()` | Implemented as `track::playNextEpisodeOfLastWatchedAnime()`. |
 | Library > Play random anime | `track::PlayRandomAnime()` | Implemented as `track::playRandomAnime()`. |
 | Tools > Enable detection | `ToggleRecognition()` | Implemented as a persisted toggle plus status text. Full media-recognition side effects need a backend pass. |
@@ -44,7 +44,7 @@ source of truth is the original code under `src/v1`, especially:
 | Tools > Enable synchronization | `ToggleSynchronization()` | Implemented as a persisted toggle plus status text. |
 | View > Show Now Playing | v1 View menu | Implemented. |
 | View > Show statusbar | v1 View menu | Implemented. |
-| Help > Support/Donate/About | v1 Help menu | Implemented. Check-for-updates remains disabled. |
+| Help > Support/Donate/About | v1 Help menu | Implemented. Check-for-updates opens the cross-platform release page when a newer version is available. |
 | Anime List double-click | `GetAppListDoubleClickAction()` | Implemented for list and card views: do nothing, edit details, open folder, play next, info, service page. |
 | Anime List middle-click | `GetAppListMiddleClickAction()` | Implemented for list and card views with the same action set. |
 | Anime List Enter | Simulates configured double-click | Implemented for list and card views. |
@@ -99,7 +99,7 @@ Qt status:
 - Main menu submenus need a command-by-command comparison against v1 menu XML and `ui::Menus`.
 - Anime List header context menu and column visibility/order need a dedicated pass.
 - Seasons group/sort/view names are implemented but not yet persisted to v1-compatible settings keys.
-- Search should be checked against original remote-service search flows, not only local database filtering.
+- Search routes exist for MyAnimeList, Kitsu, and AniList; they still need authenticated live-provider fixtures.
 - Torrents need full quick-filter menu parity and client launch behavior verification on Linux.
 - Some shared anime menu actions depend on library folder detection, media playback, or service update calls and need live workflow testing.
 - Custom Qt surfaces should be checked for hover/selection states against the original Win32 behavior.

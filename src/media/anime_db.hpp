@@ -39,6 +39,7 @@ public:
 
   const Anime* item(const int id) const;
   const ListEntry* entry(const int id) const;
+  QString availableEpisodePath(const int animeId, const int episode);
 
   const QMap<int, Anime>& items() const;
   const QMap<int, ListEntry>& entries() const;
@@ -46,6 +47,8 @@ public:
   void updateItem(const Anime& item);
   void updateEntry(const ListEntry& entry);
   void deleteEntry(const int animeId);
+  void clearAvailableEpisodes();
+  void setAvailableEpisode(const int animeId, const int episode, const QString& path);
   void clearEntries();
 
 signals:

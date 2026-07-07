@@ -24,6 +24,7 @@
 
 #include "track/episode.hpp"
 #include "track/recognition.hpp"
+#include "media/anime_db.hpp"
 
 namespace track {
 
@@ -72,6 +73,7 @@ std::optional<QString> findFolder(const QString& path, const int anime_id) {
 ScanSummary scanAvailableEpisodes(const std::vector<std::string>& libraryFolders) {
   ScanSummary summary;
   QSet<int> animeIds;
+  anime::db.clearAvailableEpisodes();
 
   for (const auto& folder : libraryFolders) {
     const auto root = QString::fromStdString(folder);
@@ -88,6 +90,11 @@ ScanSummary scanAvailableEpisodes(const std::vector<std::string>& libraryFolders
       auto episode = recognition::parseFileInfo(info);
       const auto animeId = track::recognition::identify(episode);
       if (animeId <= 0) continue;
+      const auto episodeNumber =
+          QString::fromStdString(episode.element(anitomy::ElementKind::Episode)).toInt();
+      if (episodeNumber > 0) {
+        anime::db.setAvailableEpisode(animeId, episodeNumber, info.absoluteFilePath());
+      }
 
       ++summary.recognized;
       animeIds.insert(animeId);

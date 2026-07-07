@@ -42,8 +42,8 @@ Primary v1 sources:
 | Shared search box | Mode changes by page: service search, feed search, list filter, or none. Enter submits in service/feed mode. | Done | `MainWindow::updateSearchBoxForPage`, `taiga-ui-interaction-driver-tests`. |
 | Back/forward navigation | V1 tracks page history. | Done | V2 page history is wired to Back/Forward actions and covered by the interaction driver. |
 | Status bar | Shows command progress, selection summaries, update timers, feed errors. | Partial | Present, but torrent transfer progress and some command statuses are simpler. |
-| Tray integration | Show/hide, tray menu, notification click routes. | Partial | Tray exists; notification click routes and taskbar-specific behavior are not all ported. |
-| Single-instance behavior | Existing instance is activated. | Partial | Lock exists; activation is TODO. |
+| Tray integration | Show/hide, tray menu, notification click routes. | Partial | Tray exists; notification clicks raise the main window; taskbar-specific behavior is not all ported. |
+| Single-instance behavior | Existing instance is activated. | Done | Second launch signals the running instance over a local socket and raises the main window. |
 | Drag/drop files | Debug recognition preview. | Missing | Debug-only v1 behavior not ported. |
 
 ## Now Playing
@@ -54,8 +54,8 @@ Primary v1 sources:
 | Detected media details | Poster, title, now playing episode/group, action links, alt titles, metadata, synopsis. | Partial | UI exists; live behavior depends on Anisthesia bridge and media recognition completeness. |
 | Edit action | Opens anime/list edit dialog for current anime. | Partial | Shared dialog exists; now-playing edit workflow needs live test. |
 | Share action | Announces current episode via enabled sharing providers. | Partial | Sharing settings exist; sharing backends are not fully validated. |
-| Watch next action | Plays next episode from library folders. | Partial | Play helper exists; scanner/library folder workflow needs end-to-end test. |
-| Taskbar notification route | Clicking now-playing notification opens Now Playing. | Missing | Tray notification routes not implemented. |
+| Watch next action | Plays next episode from library folders. | Partial | Play helper exists; scanner now persists per-episode availability; playback workflow still needs end-to-end media tests. |
+| Taskbar notification route | Clicking now-playing notification opens Now Playing. | Partial | Tray notification click now raises the window; page-specific notification routing needs a live now-playing test. |
 
 ## Anime List
 
@@ -120,13 +120,13 @@ Primary v1 sources:
 | --- | --- | --- | --- |
 | Toolbar | Check new torrents, download marked, discard all, settings. | Done | `TorrentsWidget`, parity tests. |
 | Shared search submit | Enter searches configured torrent search URL and replaces feed results. | Done | `taiga-ui-interaction-driver-tests`. |
-| Fetch headers/timeouts | RSS Accept header, user-agent, 30 second timeout, proxy/cert settings. | Partial | Headers/timeout done; proxy/cert settings still TODO. |
+| Fetch headers/timeouts | RSS Accept header, user-agent, 30 second timeout, proxy/cert settings. | Partial | Headers, timeout, and proxy settings are applied; certificate revocation/no-revoke mapping remains. |
 | TokyoToshokan failures | Cloudflare/server failures such as `525` must be reported as server errors, not masked as local timeout. | Partial | Timeout is fixed; error wording should include HTTP status when provided. |
 | Ctrl-refresh | Loads cached `feed.xml`. | Done | Needs driver/manual shortcut test. |
 | Feed cache | Saves successful feed per source. | Done | `track::torrent`. |
 | Source parsers | TokyoToshokan, Nyaa, AnimeTosho, AniDex, Minglong, SubsPlease. | Partial | Implemented core cases; needs real-feed fixtures. |
 | Recognition | Anitomy recognition extracts title, episode, group, resolution, anime ID. | Done | `taiga-core-tests`. |
-| Filters | Select/prefer/discard rules, hidden/inactive/archive states, full condition editor. | Partial | Named/default filters and a structured action-field-condition-value editor exist; multi-condition/operator parity remains. |
+| Filters | Select/prefer/discard rules, hidden/inactive/archive states, full condition editor. | Partial | Named/default filters include watched and locally available episode discards; structured action-field-condition-value editor exists; multi-condition/operator parity remains. |
 | Groups/columns | Anime/Batch/Other groups and all v1 columns. | Done | `TorrentsWidget`, parity tests. |
 | Checkbox range | Shift-click range in same group. | Done | Needs interaction test. |
 | Context menu | Download, anime info, torrent info, discard, discard anime, prefer group, more torrents, search service. | Partial | Most actions exist; anime-info-specific action and exact menu order need refinement. |
@@ -149,7 +149,7 @@ Primary v1 sources:
 
 | Requirement | V1 behavior | V2 status | Evidence / action |
 | --- | --- | --- | --- |
-| Anime information / media dialog | Details/list editing/external links/poster. | Partial | `MediaDialog` exists; field-by-field v1 comparison still needed. |
+| Anime information / media dialog | Details/list editing/external links/poster. | Partial | `MediaDialog` exists and AniList edits save through GraphQL; field-by-field v1 comparison still needed. |
 | Feed filter dialog | Full filter editor with conditions/actions/operators. | Partial | Current settings UI supports add/edit for single structured condition rows. |
 | Feed condition dialog | Add/edit a single torrent filter condition. | Partial | Action, field, match operator, and value are editable; every v1 operator/action still needs direct mapping. |
 | Format string dialog | Edit HTTP/mIRC/notification templates. | Partial | Format editor UI exists; variable preview/testing needs parity check. |

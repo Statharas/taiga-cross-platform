@@ -225,6 +225,18 @@ int main(int argc, char* argv[]) {
   require(scanSummary.files == 1, "Scanner did not count library media file");
   require(scanSummary.recognized == 1, "Scanner did not recognize known fixture episode");
   require(scanSummary.anime == 1, "Scanner did not count unique recognized anime");
+  require(!anime::db.availableEpisodePath(exampleAnime.id, 1).isEmpty(),
+          "Scanner did not persist episode availability");
+
+  exampleEntry.watched_episodes = 0;
+  anime::db.updateEntry(exampleEntry);
+  const auto availableTorrents = track::torrent::parseFeed(R"(
+    <rss><channel><title>Nyaa</title>
+      <item><title>[Group] Example Anime - 01 [720p]</title><link>magnet:?xt=urn:btih:available</link></item>
+    </channel></rss>
+  )");
+  require(availableTorrents.front().state == track::torrent::ItemState::Discarded,
+          "Available local episodes should be discarded by the default torrent filters");
 
   auto groupedItems = std::vector<track::torrent::Item>{
       {.published = "Tue, 07 Jul 2026 13:00:00 GMT",

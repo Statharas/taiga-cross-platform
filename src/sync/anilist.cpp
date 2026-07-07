@@ -277,10 +277,6 @@ void Service::fetchListEntries(std::function<void(bool, const QString&)> done) {
   manager_.post(api_.createRequest(), data, this, callback);
 }
 
-void Service::addListEntry() {
-  updateListEntry();
-}
-
 void Service::deleteListEntry(const int id) {
   const auto listEntry = anime::db.entry(id);
 
@@ -303,8 +299,89 @@ void Service::deleteListEntry(const int id) {
   manager_.post(api_.createRequest(), data, this, callback);
 }
 
-void Service::updateListEntry() {
-  // @TODO
+namespace {
+
+QString toAniListStatus(anime::list::Status status) {
+  switch (status) {
+    case anime::list::Status::Watching:
+      return "CURRENT";
+    case anime::list::Status::Completed:
+      return "COMPLETED";
+    case anime::list::Status::OnHold:
+      return "PAUSED";
+    case anime::list::Status::Dropped:
+      return "DROPPED";
+    case anime::list::Status::PlanToWatch:
+      return "PLANNING";
+    case anime::list::Status::NotInList:
+      break;
+  }
+  return {};
+}
+
+QJsonObject fuzzyDateInput(const FuzzyDate& date) {
+  QJsonObject object;
+  if (date.year() > 0) object["year"] = static_cast<int>(date.year());
+  if (date.month() > 0) object["month"] = static_cast<int>(date.month());
+  if (date.day() > 0) object["day"] = static_cast<int>(date.day());
+  return object;
+}
+
+}  // namespace
+
+void Service::updateListEntry(const anime::list::Entry& entry,
+                              std::function<void(bool, const QString&)> done) {
+  const auto status = toAniListStatus(entry.status);
+  if (status.isEmpty()) {
+    deleteListEntry(entry.anime_id);
+    if (done) done(true, "Removed AniList entry.");
+    return;
+  }
+
+  QJsonObject variables{
+      {"mediaId", entry.anime_id},
+      {"status", status},
+      {"scoreRaw", entry.score},
+      {"progress", entry.watched_episodes},
+      {"repeat", entry.rewatched_times},
+      {"notes", QString::fromStdString(entry.notes)},
+  };
+  if (entry.id != anime::list::kUnknownId) variables["id"] = static_cast<qint64>(entry.id);
+  const auto startedAt = fuzzyDateInput(entry.date_started);
+  if (!startedAt.isEmpty()) variables["startedAt"] = startedAt;
+  const auto completedAt = fuzzyDateInput(entry.date_completed);
+  if (!completedAt.isEmpty()) variables["completedAt"] = completedAt;
+
+  const QJsonDocument data{{
+      {"query", gql("SaveMediaListEntry")},
+      {"variables", variables},
+  }};
+
+  const auto callback = [this, done = std::move(done)](QRestReply& reply) mutable {
+    if (isError(reply)) {
+      handleError(reply);
+      if (done) done(false, reply.errorString());
+      return;
+    }
+
+    const auto json = reply.readJson();
+    if (!json) {
+      handleError(reply, "Could not parse saved AniList entry.");
+      if (done) done(false, "Could not parse saved AniList entry.");
+      return;
+    }
+
+    const auto root = (*json)["data"]["SaveMediaListEntry"].toObject();
+    if (const auto media = parseMedia(root["media"])) anime::db.updateItem(*media);
+    if (const auto savedEntry = parseMediaListEntry(root)) {
+      anime::db.updateEntry(*savedEntry);
+      if (done) done(true, "Saved AniList entry.");
+    } else if (done) {
+      done(false, "Could not parse saved AniList entry.");
+    }
+  };
+
+  manager_.post(api_.createRequest(), data, this, callback);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -260,6 +260,8 @@ void applyNamedFilter(Item& item, const QString& name) {
     const auto episode = episodeNumber(item);
     if (entry && episode && *episode <= entry->watched_episodes) {
       mark(item, ItemState::Discarded, name);
+    } else if (episode && !anime::db.availableEpisodePath(item.anime_id, *episode).isEmpty()) {
+      mark(item, ItemState::Discarded, name);
     }
     return;
   }

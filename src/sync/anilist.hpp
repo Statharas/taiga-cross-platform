@@ -24,6 +24,9 @@
 
 namespace anime {
 class Season;
+namespace list {
+struct Entry;
+}
 }
 
 namespace taiga_sync::anilist {
@@ -39,9 +42,9 @@ public:
   void fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done = {});
   void search(const QString& query, std::function<void(bool, const QString&)> done = {});
   void fetchListEntries(std::function<void(bool, const QString&)> done = {});
-  void addListEntry();
   void deleteListEntry(const int id);
-  void updateListEntry();
+  void updateListEntry(const anime::list::Entry& entry,
+                       std::function<void(bool, const QString&)> done = {});
 
 private:
   bool applyBearerToken();

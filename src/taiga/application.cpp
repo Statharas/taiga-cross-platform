@@ -20,6 +20,7 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QLocalSocket>
 #include <QTranslator>
 #include <format>
 
@@ -67,10 +68,10 @@ int Application::run() {
   }
 
   if (hasPreviousInstance()) {
-    // @TODO: Activate previous instance
     LOGD("Another instance of Taiga is running.");
     return 0;
   }
+  initSingleInstanceServer();
 
   taiga::settings.init();
   anime::db.init();
@@ -110,7 +111,38 @@ void Application::setMainWindowForTest(gui::MainWindow* window) {
 
 bool Application::hasPreviousInstance() {
   instance_lock_.setStaleLockTime(0);
-  return !instance_lock_.tryLock();
+  if (instance_lock_.tryLock()) return false;
+
+  QLocalSocket socket;
+  socket.connectToServer(QString::fromStdString(std::format("{}/taiga.sock", get_data_path())));
+  if (socket.waitForConnected(500)) {
+    socket.write("activate");
+    socket.flush();
+    socket.waitForBytesWritten(500);
+  }
+  return true;
+}
+
+void Application::initSingleInstanceServer() {
+  const auto serverName = QString::fromStdString(std::format("{}/taiga.sock", get_data_path()));
+  QLocalServer::removeServer(serverName);
+  if (!instance_server_.listen(serverName)) {
+    LOGW("Could not start single-instance server: {}",
+         instance_server_.errorString().toStdString());
+    return;
+  }
+
+  connect(&instance_server_, &QLocalServer::newConnection, this, [this]() {
+    while (auto* socket = instance_server_.nextPendingConnection()) {
+      connect(socket, &QLocalSocket::readyRead, this, [this, socket]() {
+        if (socket->readAll().contains("activate") && window_) {
+          window_->displayWindow();
+          window_->raise();
+        }
+      });
+      connect(socket, &QLocalSocket::disconnected, socket, &QObject::deleteLater);
+    }
+  });
 }
 
 void Application::initLogger() const {

@@ -25,6 +25,9 @@
 
 namespace anime {
 class Season;
+namespace list {
+struct Entry;
+}
 }
 
 namespace taiga_sync {
@@ -60,6 +63,8 @@ void fetchAnime(const int id);
 void fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done = {});
 void searchTitle(const QString& query, std::function<void(bool, const QString&)> done = {});
 void synchronize(std::function<void(bool, const QString&)> done = {});
+void updateListEntry(const anime::list::Entry& entry,
+                     std::function<void(bool, const QString&)> done = {});
 
 QString animePageUrl(const int id);
 

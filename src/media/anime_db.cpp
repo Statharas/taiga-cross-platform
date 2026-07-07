@@ -49,6 +49,7 @@ void Database::init() {
     return;
   }
 
+  createTables();
   readItems();
   readEntries();
 }
@@ -61,6 +62,22 @@ const Anime* Database::item(const int id) const {
 const ListEntry* Database::entry(const int id) const {
   const auto it = entries_.find(id);
   return it != entries_.end() ? &(*it) : nullptr;
+}
+
+QString Database::availableEpisodePath(const int animeId, const int episode) {
+  if (!db_.open()) return {};
+
+  QSqlQuery q{db_};
+  if (!q.prepare("SELECT path FROM anime_episode_available WHERE media_id = :media_id AND episode = :episode")) {
+    db_.close();
+    return {};
+  }
+  q.bindValue(":media_id", animeId);
+  q.bindValue(":episode", episode);
+  q.exec();
+  const auto path = q.next() ? q.value("path").toString() : QString{};
+  db_.close();
+  return path;
 }
 
 const QMap<int, Anime>& Database::items() const {
@@ -115,6 +132,31 @@ void Database::deleteEntry(const int animeId) {
   emit entryUpdated(animeId);
 }
 
+void Database::clearAvailableEpisodes() {
+  if (!db_.open()) return;
+
+  QSqlQuery q{db_};
+  q.exec("DELETE FROM anime_episode_available");
+  db_.close();
+}
+
+void Database::setAvailableEpisode(const int animeId, const int episode, const QString& path) {
+  if (animeId <= 0 || episode <= 0 || path.isEmpty()) return;
+  if (!db_.open()) return;
+
+  QSqlQuery q{db_};
+  if (!q.prepare("INSERT OR REPLACE INTO anime_episode_available(media_id, episode, path) "
+                 "VALUES(:media_id, :episode, :path)")) {
+    db_.close();
+    return;
+  }
+  q.bindValue(":media_id", animeId);
+  q.bindValue(":episode", episode);
+  q.bindValue(":path", path);
+  q.exec();
+  db_.close();
+}
+
 void Database::clearEntries() {
   if (!db_.open()) return;
 
@@ -158,6 +200,11 @@ void Database::createTables() {
   if (!tables.contains("anime_list")) {
     QSqlQuery q{db_};
     q.exec(sql("createAnimeList"));
+  }
+
+  if (!tables.contains("anime_episode_available")) {
+    QSqlQuery q{db_};
+    q.exec(sql("createAnimeEpisodeAvailable"));
   }
 
   db_.commit();

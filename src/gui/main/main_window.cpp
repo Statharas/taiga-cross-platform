@@ -345,8 +345,10 @@ void MainWindow::initTrayIcon() {
   m_trayIcon = new TrayIcon(this, windowIcon(), menu);
 
   connect(m_trayIcon, &TrayIcon::activated, this, &MainWindow::displayWindow);
-  connect(m_trayIcon, &TrayIcon::messageClicked, this,
-          []() { QMessageBox::information(nullptr, "Taiga", tr("Clicked message")); });
+  connect(m_trayIcon, &TrayIcon::messageClicked, this, [this]() {
+    displayWindow();
+    navigateTo(MainWindowPage::Home);
+  });
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
