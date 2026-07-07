@@ -33,6 +33,8 @@ public:
   std::string kitsuEmail() const;
   std::string kitsuUsername() const;
   std::string kitsuPassword() const;
+  std::string kitsuAccessToken() const;
+  std::string kitsuUserId() const;
 
   std::string myanimelistUsername() const;
   std::string myanimelistAccessToken() const;
@@ -44,6 +46,8 @@ public:
   void setKitsuEmail(const std::string& email) const;
   void setKitsuUsername(const std::string& username) const;
   void setKitsuPassword(const std::string& password) const;
+  void setKitsuAccessToken(const std::string& token) const;
+  void setKitsuUserId(const std::string& userId) const;
 
   void setMyanimelistUsername(const std::string& username) const;
   void setMyanimelistAccessToken(const std::string& accessToken) const;

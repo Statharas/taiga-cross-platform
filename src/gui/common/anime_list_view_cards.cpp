@@ -19,6 +19,7 @@
 #include "anime_list_view_cards.hpp"
 
 #include <QKeyEvent>
+#include <QMouseEvent>
 #include <QScrollBar>
 #include <QWheelEvent>
 
@@ -48,12 +49,29 @@ void ListViewCards::keyPressEvent(QKeyEvent* event) {
   if (event->key() == Qt::Key::Key_Return || event->key() == Qt::Key::Key_Enter) {
     const auto indexes = selectionModel()->selectedIndexes();
     for (const auto& index : indexes) {
-      m_base->showMediaDialog(index);
+      m_base->executeConfiguredDoubleClickAction(index);
     }
+    return;
+  }
+  if (event->key() == Qt::Key::Key_Delete) {
+    m_base->removeSelectedEntries();
     return;
   }
 
   QListView::keyPressEvent(event);
+}
+
+void ListViewCards::mousePressEvent(QMouseEvent* event) {
+  if (event->button() == Qt::MouseButton::MiddleButton) {
+    const QModelIndex index = indexAt(event->pos());
+    if (index.isValid()) {
+      setCurrentIndex(index);
+      m_base->executeConfiguredMiddleClickAction(index);
+      return;
+    }
+  }
+
+  QListView::mousePressEvent(event);
 }
 
 void ListViewCards::paintEvent(QPaintEvent* event) {

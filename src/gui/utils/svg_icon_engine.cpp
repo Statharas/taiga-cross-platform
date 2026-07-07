@@ -58,7 +58,7 @@ QPixmap SvgIconEngine::scaledPixmap(const QSize& size, QIcon::Mode mode, QIcon::
     const QRect rect({0, 0}, size);
 
     const QColor color = [mode]() {
-      QPalette palette;
+      const auto palette = QGuiApplication::palette();
       switch (mode) {
         default:
         case QIcon::Normal:

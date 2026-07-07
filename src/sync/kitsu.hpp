@@ -18,7 +18,14 @@
 
 #pragma once
 
-namespace sync::kitsu {
+#include "sync/service.hpp"
+
+#include <functional>
+#include <memory>
+
+#include <QList>
+
+namespace taiga_sync::kitsu {
 
 enum ListPrivacy {
   kPrivate = 1,
@@ -33,4 +40,20 @@ enum ListStatus {
   kDropped,
 };
 
-}  // namespace sync::kitsu
+class Service final : public taiga_sync::Service {
+public:
+  static Service* instance();
+
+  void fetchListEntries(std::function<void(bool, const QString&)> done = {});
+  void fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done = {});
+
+private:
+  void fetchAuthenticatedUser(std::function<void(bool, const QString&, const QString&)> done);
+  void fetchListEntriesPage(const QString& userId, int offset, bool clearFirst, int updatedCount,
+                            std::function<void(bool, const QString&)> done);
+  void fetchSeasonPage(const anime::Season season, int offset,
+                       const std::shared_ptr<QList<int>>& ids,
+                       std::function<void(bool, const QString&)> done);
+};
+
+}  // namespace taiga_sync::kitsu

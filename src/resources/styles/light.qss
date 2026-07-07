@@ -1,29 +1,123 @@
+QMainWindow,
+QWidget#centralWidget,
+QMenuBar,
+QMenu,
+QToolBar,
+QStatusBar {
+  background-color: #f0f0f0;
+  color: #000;
+}
+
+QMenu {
+  background-color: #f0f0f0;
+  border: 1px solid #9f9f9f;
+  padding: 2px;
+}
+
+QMenu::item {
+  background-color: transparent;
+  color: #000;
+  min-height: 20px;
+  padding: 2px 24px 2px 26px;
+}
+
+QMenu::item:selected {
+  background-color: #dcdcdc;
+  color: #000;
+}
+
+QMenu::separator {
+  height: 1px;
+  background-color: #b8b8b8;
+  margin: 3px 2px;
+}
+
+QMenu::icon {
+  left: 5px;
+}
+
+QStackedWidget,
+QWidget#homePage,
+QWidget#searchPage,
+QWidget#listPage,
+QWidget#historyPage,
+QWidget#libraryPage,
+QWidget#torrentsPage {
+  background-color: #fff;
+  color: #000;
+}
+
+QLabel,
+QCheckBox,
+QRadioButton,
+QGroupBox,
+QTabBar::tab,
+QHeaderView::section,
+QTreeView,
+QTableView,
+QListView {
+  color: #000;
+}
+
+QLineEdit,
+QComboBox,
+QSpinBox,
+QTextEdit,
+QPlainTextEdit {
+  background-color: #fff;
+  color: #000;
+}
+
+QLineEdit:hover,
+QComboBox:hover,
+QSpinBox:hover,
+QTextEdit:hover,
+QPlainTextEdit:hover {
+  border-color: #7aa7d9;
+}
+
+QComboBox QAbstractItemView {
+  background-color: #fff;
+  color: #000;
+  selection-background-color: #dbeeff;
+  selection-color: #000;
+}
+
+QComboBox QAbstractItemView::item:hover {
+  background-color: #e8f4ff;
+  color: #000;
+}
+
 /* Toolbar */
 
 QMainWindow > QToolBar {
-  border-bottom-color: rgba(0, 0, 0, 16%);
+  background-color: #f0f0f0;
+  border-bottom-color: #c9c9c9;
 }
 
 QMainWindow > #centralWidget > QSplitter {
-  background-color: rgba(255, 255, 255, 30%);
+  background-color: #ffffff;
 }
 QMainWindow > #centralWidget > QSplitter::handle {
-  background-color: rgba(0, 0, 0, 16%);
+  background-color: #c9c9c9;
 }
 
 /* Navigation */
 
 QTreeWidget#navigation::item:hover:!selected {
-  background-color: rgba(0, 0, 0, 4%);
+  background-color: #e8e8e8;
+  color: #000;
 }
 QTreeWidget#navigation::item:active {
   color: #000;
 }
 QTreeWidget#navigation::item:selected:active {
-  background-color: rgba(0, 0, 0, 8%);
+  background-color: #d6d6d6;
+  color: #000;
 }
 QTreeWidget#navigation::item:selected:!active {
-  background-color: rgba(0, 0, 0, 6%);
+  background-color: #d6d6d6;
+  color: #000;
 }
 
 /* List */
@@ -35,6 +129,7 @@ QMainWindow QStackedWidget QTreeView {
 
 QMainWindow QStackedWidget QAbstractScrollArea {
   background-color: #fff;
+  color: #000;
 }
 
 QTreeView#animeList QHeaderView {
@@ -45,19 +140,30 @@ QTreeView#animeList::item {
   background-color: #fff;
 }
 QTreeView#animeList::item:alternate {
-  background-color: rgba(0, 0, 0, 1%);
+  background-color: #f7f7f7;
 }
 QTreeView#animeList::item:hover:!selected {
-  background-color: rgba(0, 0, 0, 4%);
+  background-color: #e8e8e8;
 }
 QTreeView#animeList::item:active {
   color: #000;
 }
 QTreeView#animeList::item:selected:active {
-  background-color: rgba(0, 0, 0, 8%);
+  background-color: #dcdcdc;
 }
 QTreeView#animeList::item:selected:!active {
-  background-color: rgba(0, 0, 0, 6%);
+  background-color: #e4e4e4;
+}
+
+QTableWidget::item:hover:!selected,
+QTreeView#historyView::item:hover:!selected,
+QTreeView#libraryView::item:hover:!selected {
+  background-color: #e8e8e8;
+}
+
+QTableWidget::item:selected {
+  background-color: #dcdcdc;
+  color: #000;
 }
 
 /* Now Playing */

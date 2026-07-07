@@ -59,14 +59,32 @@ Qt::ColorScheme Settings::appColorScheme() const {
       .value<Qt::ColorScheme>();
 }
 
+bool Settings::boolValue(QAnyStringView key, bool defaultValue) const {
+  return value(key, defaultValue).toBool();
+}
+
+int Settings::intValue(QAnyStringView key, int defaultValue) const {
+  return value(key, defaultValue).toInt();
+}
+
 std::string Settings::service() const {
-  return value("v1.service", sync::serviceSlug(sync::ServiceId::AniList)).toString().toStdString();
+  return value("v1.service", taiga_sync::serviceSlug(taiga_sync::ServiceId::AniList))
+      .toString()
+      .toStdString();
+}
+
+QString Settings::stringValue(QAnyStringView key, const QString& defaultValue) const {
+  return value(key, defaultValue).toString();
 }
 
 std::vector<std::string> Settings::libraryFolders() const {
-  return value("library.folders").toJsonArray().toVariantList() |
-         std::views::transform([](const QVariant& v) { return v.toString().toStdString(); }) |
-         std::ranges::to<std::vector>();
+  const auto variants = value("library.folders").toJsonArray().toVariantList();
+  std::vector<std::string> folders;
+  folders.reserve(variants.size());
+  for (const auto& variant : variants) {
+    folders.emplace_back(variant.toString().toStdString());
+  }
+  return folders;
 }
 
 std::chrono::milliseconds Settings::mediaDetectionInterval() const {
@@ -80,20 +98,33 @@ void Settings::setAppColorScheme(const Qt::ColorScheme scheme) const {
   setValue("app.colorScheme", static_cast<int>(scheme));
 }
 
+void Settings::setBoolValue(QAnyStringView key, bool value) const {
+  setValue(key, value);
+}
+
+void Settings::setIntValue(QAnyStringView key, int value) const {
+  setValue(key, value);
+}
+
 void Settings::setService(const std::string& service) const {
   setValue("v1.service", service);
 }
 
+void Settings::setStringValue(QAnyStringView key, const QString& value) const {
+  setValue(key, value);
+}
+
 void Settings::setLibraryFolders(std::vector<std::string> folders) const {
-  const auto list =
-      folders |
-      std::views::transform([](const std::string& s) { return QString::fromStdString(s); }) |
-      std::ranges::to<QList>();
+  QStringList list;
+  list.reserve(static_cast<qsizetype>(folders.size()));
+  for (const auto& folder : folders) {
+    list.emplace_back(QString::fromStdString(folder));
+  }
   setValue("library.folders", QJsonArray::fromStringList(list));
 }
 
 void Settings::setMediaDetectionInterval(const std::chrono::milliseconds interval) const {
-  setValue("track.detection.interval", interval.count());
+  setValue("track.detection.interval", static_cast<qlonglong>(interval.count()));
 }
 
 }  // namespace taiga

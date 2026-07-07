@@ -31,12 +31,18 @@ public:
   void init() const;
 
   Qt::ColorScheme appColorScheme() const;
+  bool boolValue(QAnyStringView key, bool defaultValue = false) const;
+  int intValue(QAnyStringView key, int defaultValue = 0) const;
   std::string service() const;
+  QString stringValue(QAnyStringView key, const QString& defaultValue = {}) const;
   std::vector<std::string> libraryFolders() const;
   std::chrono::milliseconds mediaDetectionInterval() const;
 
   void setAppColorScheme(const Qt::ColorScheme scheme) const;
+  void setBoolValue(QAnyStringView key, bool value) const;
+  void setIntValue(QAnyStringView key, int value) const;
   void setService(const std::string& service) const;
+  void setStringValue(QAnyStringView key, const QString& value) const;
   void setLibraryFolders(std::vector<std::string> folders) const;
   void setMediaDetectionInterval(const std::chrono::milliseconds interval) const;
 

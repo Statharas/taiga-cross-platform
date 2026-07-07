@@ -49,7 +49,11 @@ QString formatListScore(const int value, QString placeholder) {
 }
 
 QString formatDate(const base::Date& date, QString placeholder) {
-  return date.ok() ? formatDate(QDate(date), placeholder) : placeholder;
+  if (!date.ok()) return placeholder;
+  return formatDate(QDate{static_cast<int>(date.year()),
+                          static_cast<int>(static_cast<unsigned>(date.month())),
+                          static_cast<int>(static_cast<unsigned>(date.day()))},
+                    placeholder);
 }
 
 QString formatDate(const QDate date, QString placeholder) {

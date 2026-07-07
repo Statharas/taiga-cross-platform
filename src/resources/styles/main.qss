@@ -16,11 +16,13 @@ QMenuBar {
 QMainWindow > QToolBar {
   border-bottom-width: 1px;
   border-bottom-style: solid;
-  padding: 8px;
+  padding: 3px 6px;
+  spacing: 4px;
 }
 
 QMainWindow > QToolBar QLineEdit {
-  padding: 4px 8px;
+  padding: 2px 6px;
+  min-height: 20px;
 }
 
 QToolButton::menu-indicator {
@@ -32,14 +34,15 @@ QToolButton::menu-indicator {
 QTreeWidget#navigation {
   background-color: transparent;
   outline: none;
-  padding: 16px 8px;
+  padding: 4px 6px;
+  selection-color: #000;
 }
 
 QTreeWidget#navigation::item {
   background-color: transparent;
-  border-radius: 3px;
-  padding-left: 4px;
-  padding-right: 4px;
+  border-radius: 0px;
+  padding-left: 2px;
+  padding-right: 2px;
 }
 
 /* List */
@@ -58,10 +61,10 @@ QTreeView#animeList QHeaderView {
 QTreeView#animeList QHeaderView::section,
 QTreeView#historyView QHeaderView::section,
 QTreeView#libraryView QHeaderView::section {
-  font-weight: 600;
-  height: 32px;
-  padding-left: 12px;
-  padding-right: 12px;
+  font-weight: 400;
+  height: 24px;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 QTreeView#animeList,
@@ -73,8 +76,8 @@ QTreeView#libraryView {
 QTreeView#animeList::item,
 QTreeView#historyView::item,
 QTreeView#libraryView::item {
-  padding-left: 8px;
-  padding-right: 8px;
+  padding-left: 6px;
+  padding-right: 6px;
 }
 
 QTreeView#historyView::item,

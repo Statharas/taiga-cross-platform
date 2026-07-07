@@ -88,8 +88,8 @@ struct Titles {
 
 struct Details {
   int id = kUnknownId;
-  // std::map<sync::ServiceId, std::string> uids;
-  // sync::ServiceId source = sync::ServiceId::Unknown;
+  // std::map<taiga_sync::ServiceId, std::string> uids;
+  // taiga_sync::ServiceId source = taiga_sync::ServiceId::Unknown;
   std::time_t last_modified = 0;
   int episode_count = kUnknownEpisodeCount;
   int episode_length = kUnknownEpisodeLength;

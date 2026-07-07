@@ -22,6 +22,8 @@
 #include <unordered_map>
 #include <vector>
 
+class QByteArray;
+
 namespace rss {
 
 // Reference: https://www.rssboard.org/rss-specification
@@ -73,5 +75,7 @@ struct Feed {
   Channel channel;
   std::vector<Item> items;
 };
+
+Feed parseDocument(const QByteArray& data);
 
 }  // namespace rss

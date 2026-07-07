@@ -49,6 +49,14 @@ std::string Accounts::kitsuPassword() const {
   return value("kitsu.password").toString().toStdString();
 }
 
+std::string Accounts::kitsuAccessToken() const {
+  return value("kitsu.accessToken").toString().toStdString();
+}
+
+std::string Accounts::kitsuUserId() const {
+  return value("kitsu.userId").toString().toStdString();
+}
+
 std::string Accounts::myanimelistUsername() const {
   return value("myanimelist.username").toString().toStdString();
 }
@@ -81,6 +89,14 @@ void Accounts::setKitsuUsername(const std::string& username) const {
 
 void Accounts::setKitsuPassword(const std::string& password) const {
   setValue("kitsu.password", password);
+}
+
+void Accounts::setKitsuAccessToken(const std::string& token) const {
+  setValue("kitsu.accessToken", token);
+}
+
+void Accounts::setKitsuUserId(const std::string& userId) const {
+  setValue("kitsu.userId", userId);
 }
 
 void Accounts::setMyanimelistUsername(const std::string& username) const {

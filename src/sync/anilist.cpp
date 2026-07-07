@@ -22,12 +22,15 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRestReply>
+#include <memory>
 #include <ranges>
 
 #include "base/file.hpp"
 #include "base/log.hpp"
 #include "base/string.hpp"
 #include "media/anime_db.hpp"
+#include "media/anime_season.hpp"
+#include "media/anime_season_db.hpp"
 #include "sync/anilist_parsers.hpp"
 #include "sync/anilist_utils.hpp"
 #include "taiga/accounts.hpp"
@@ -35,14 +38,11 @@
 // AniList API documentation:
 // https://docs.anilist.co/
 
-namespace sync::anilist {
+namespace taiga_sync::anilist {
 
-Service::Service() : sync::Service{} {
+Service::Service() : taiga_sync::Service{} {
   api_.setBaseUrl(QUrl{"https://graphql.anilist.co"});
-
-  if (const auto token = taiga::accounts.anilistToken(); !token.empty()) {
-    api_.setBearerToken(QByteArray::fromStdString(token));
-  }
+  applyBearerToken();
 }
 
 Service* Service::instance() {
@@ -52,15 +52,20 @@ Service* Service::instance() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void Service::authenticateUser() {
+void Service::authenticateUser(std::function<void(bool, const QString&)> done) {
+  if (!applyBearerToken()) {
+    if (done) done(false, "AniList token is not configured.");
+    return;
+  }
+
   const QJsonDocument data{QJsonObject{
       {"query", gql("Viewer")},
   }};
 
-  const auto callback = [this](QRestReply& reply) {
+  const auto callback = [this, done = std::move(done)](QRestReply& reply) {
     if (isError(reply)) {
       handleError(reply);
-      // @TODO: Set authenticated state and emit signal
+      if (done) done(false, reply.errorString());
       return;
     }
 
@@ -70,14 +75,14 @@ void Service::authenticateUser() {
 
     if (!viewer) {
       handleError(reply, "Could not parse user object.");
-      // @TODO: Set authenticated state and emit signal
+      if (done) done(false, "Could not parse AniList user object.");
       return;
     }
 
     taiga::accounts.setAnilistUsername((*viewer)["name"].toString().toStdString());
     // @TODO: Set rating system setting using viewer["mediaListOptions"]["scoreFormat"]
 
-    // @TODO: Set authenticated state and emit signal
+    if (done) done(true, {});
   };
 
   manager_.post(api_.createRequest(), data, this, callback);
@@ -109,6 +114,63 @@ void Service::fetchAnime(const int id) {
   manager_.post(api_.createRequest(), data, this, callback);
 }
 
+void Service::fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done) {
+  constexpr int kPageSize = 50;
+
+  const auto ids = std::make_shared<QList<int>>();
+  const auto fetchPage = std::make_shared<std::function<void(int)>>();
+
+  *fetchPage = [this, season, done = std::move(done), ids, fetchPage, kPageSize](int page) mutable {
+    const QJsonDocument data{QJsonObject{
+        {"query", gql("MediaSearch")},
+        {"variables",
+         QJsonObject{
+             {"season", fromSeasonName(season.name)},
+             {"seasonYear", static_cast<int>(season.year)},
+             {"page", page},
+             {"perPage", kPageSize},
+         }},
+    }};
+
+    const auto callback =
+        [this, season, done, ids, fetchPage](QRestReply& reply) mutable {
+          if (isError(reply)) {
+            handleError(reply);
+            if (done) done(false, reply.errorString());
+            return;
+          }
+
+          const auto json = reply.readJson();
+          if (!json) {
+            handleError(reply, "Could not parse season results.");
+            if (done) done(false, "Could not parse AniList season data.");
+            return;
+          }
+
+          const auto pageObject = (*json)["data"]["Page"].toObject();
+          for (const auto& value : pageObject["media"].toArray()) {
+            if (const auto item = parseMedia(value)) {
+              anime::db.updateItem(*item);
+              ids->push_back(item->id);
+            }
+          }
+
+          const auto pageInfo = pageObject["pageInfo"].toObject();
+          if (pageInfo["hasNextPage"].toBool()) {
+            (*fetchPage)(pageInfo["currentPage"].toInt() + 1);
+            return;
+          }
+
+          anime::season_db.set(season, *ids);
+          if (done) done(true, QString{"Fetched %1 AniList season entries."}.arg(ids->size()));
+        };
+
+    manager_.post(api_.createRequest(), data, this, callback);
+  };
+
+  (*fetchPage)(1);
+}
+
 void Service::search(const QString& query) {
   const QJsonDocument data{{
       {"query", gql("MediaSearch")},
@@ -124,8 +186,13 @@ void Service::search(const QString& query) {
     const auto items = reply.readJson().and_then([](const QJsonDocument& json) {
       const auto value = json["data"]["Page"]["media"];
       if (!value.isArray()) return std::optional<QList<std::optional<Anime>>>{};
-      return std::make_optional(value.toArray() | std::views::transform(parseMedia) |
-                                std::ranges::to<QList>());
+      QList<std::optional<Anime>> items;
+      const auto array = value.toArray();
+      items.reserve(array.size());
+      for (const auto& item : array) {
+        items.emplace_back(parseMedia(item));
+      }
+      return std::make_optional(items);
     });
 
     if (!items) {
@@ -141,8 +208,66 @@ void Service::search(const QString& query) {
   manager_.post(api_.createRequest(), data, this, callback);
 }
 
-void Service::fetchListEntries() {
-  // @TODO
+void Service::fetchListEntries(std::function<void(bool, const QString&)> done) {
+  applyBearerToken();
+
+  const auto username = QString::fromStdString(taiga::accounts.anilistUsername()).trimmed();
+  if (username.isEmpty()) {
+    authenticateUser([this, done = std::move(done)](bool ok, const QString& message) mutable {
+      if (!ok) {
+        if (done) done(false, message);
+        return;
+      }
+      fetchListEntries(std::move(done));
+    });
+    return;
+  }
+
+  const QJsonDocument data{{
+      {"query", gql("MediaListCollection")},
+      {"variables", QJsonObject{{"userName", username}}},
+  }};
+
+  const auto callback = [this, done = std::move(done)](QRestReply& reply) {
+    if (isError(reply)) {
+      handleError(reply);
+      if (done) done(false, reply.errorString());
+      return;
+    }
+
+    const auto json = reply.readJson();
+    if (!json) {
+      handleError(reply, "Could not parse anime list.");
+      if (done) done(false, "Could not parse AniList anime list.");
+      return;
+    }
+
+    const auto lists = (*json)["data"]["MediaListCollection"]["lists"].toArray();
+    if (lists.isEmpty()) {
+      anime::db.clearEntries();
+      if (done) done(true, "AniList returned an empty anime list.");
+      return;
+    }
+
+    int updated = 0;
+    anime::db.clearEntries();
+    for (const auto& list : lists) {
+      for (const auto& value : list.toObject()["entries"].toArray()) {
+        const auto entryObject = value.toObject();
+        if (const auto media = parseMedia(entryObject["media"])) {
+          anime::db.updateItem(*media);
+        }
+        if (const auto entry = parseMediaListEntry(entryObject)) {
+          anime::db.updateEntry(*entry);
+          ++updated;
+        }
+      }
+    }
+
+    if (done) done(true, QString{"Synchronized %1 AniList entries."}.arg(updated));
+  };
+
+  manager_.post(api_.createRequest(), data, this, callback);
 }
 
 void Service::addListEntry() {
@@ -156,7 +281,7 @@ void Service::deleteListEntry(const int id) {
 
   const QJsonDocument data{{
       {"query", gql("DeleteMediaListEntry")},
-      {"variables", QJsonObject{{"id", listEntry->id}}},
+      {"variables", QJsonObject{{"id", static_cast<qint64>(listEntry->id)}}},
   }};
 
   const auto callback = [this](QRestReply& reply) {
@@ -178,12 +303,23 @@ void Service::updateListEntry() {
 ////////////////////////////////////////////////////////////////////////////////
 
 QString Service::gql(const QString& name) const {
-  return base::readFile(u":/gql/anilist/%1.gql"_s.arg(name));
+  auto query = base::readFile(u":/gql/anilist/%1.gql"_s.arg(name));
+  if (name.endsWith("Fields")) return query;
+  query.replace("{mediaFields}", gql("MediaFields").trimmed());
+  query.replace("{mediaListFields}", gql("MediaListFields").trimmed());
+  return query;
 }
 
 bool Service::isError(const QRestReply& reply) const {
   return !reply.isHttpStatusSuccess() || reply.hasError();
   // @TODO: Check DDoS protection
+}
+
+bool Service::applyBearerToken() {
+  const auto token = taiga::accounts.anilistToken();
+  if (token.empty()) return false;
+  api_.setBearerToken(QByteArray::fromStdString(token));
+  return true;
 }
 
 void Service::handleError(const QRestReply& reply, const QString& message) const {
@@ -193,4 +329,4 @@ void Service::handleError(const QRestReply& reply, const QString& message) const
   // @TODO: Emit signal
 }
 
-}  // namespace sync::anilist
+}  // namespace taiga_sync::anilist

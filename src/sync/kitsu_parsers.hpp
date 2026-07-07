@@ -19,6 +19,13 @@
 #pragma once
 
 #include <QString>
+#include <ctime>
+#include <optional>
+
+#include "media/anime.hpp"
+#include "media/anime_list.hpp"
+
+class QJsonObject;
 
 namespace anime {
 enum class AgeRating;
@@ -30,8 +37,9 @@ namespace anime::list {
 enum class Status;
 }
 
-namespace sync::kitsu {
+namespace taiga_sync::kitsu {
 
+std::optional<Anime> parseMedia(const QJsonObject& object);
 anime::AgeRating parseAgeRating(const QString& value);
 double parseScore(const QString& value);
 double fromScore(const double value);
@@ -42,5 +50,6 @@ QString fromListDate(const QString& value);
 std::time_t parseListLastUpdated(const QString& value);
 anime::list::Status parseListStatus(const QString& value);
 QString fromListStatus(const anime::list::Status value);
+std::optional<ListEntry> parseListEntry(const QJsonObject& object, int animeId);
 
-}  // namespace sync::kitsu
+}  // namespace taiga_sync::kitsu

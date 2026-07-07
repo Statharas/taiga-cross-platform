@@ -26,6 +26,7 @@ namespace gui {
 
 class AnimeListModel;
 class AnimeListProxyModel;
+class ListView;
 class ListViewCards;
 
 class SearchWidget final : public PageWidget {
@@ -45,8 +46,8 @@ private:
   ComboBox* m_comboSeason = nullptr;
   ComboBox* m_comboType = nullptr;
   ComboBox* m_comboStatus = nullptr;
-  ListViewCards* m_listViewCards = nullptr;
-  ListViewMode m_viewMode = ListViewMode::Cards;
+  ListView* m_listView = nullptr;
+  ListViewMode m_viewMode = ListViewMode::List;
 };
 
 }  // namespace gui

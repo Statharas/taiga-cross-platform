@@ -22,6 +22,7 @@
 #include <QResizeEvent>
 #include <QUrl>
 
+#include "base/chrono.hpp"
 #include "base/string.hpp"
 #include "gui/utils/format.hpp"
 #include "gui/utils/image_provider.hpp"
@@ -38,6 +39,16 @@
 #endif
 
 namespace gui {
+
+namespace {
+
+FuzzyDate fuzzyDateFromQDate(const QDate& date) {
+  return FuzzyDate{
+      std::chrono::year{date.year()} / std::chrono::month{static_cast<unsigned>(date.month())} /
+      std::chrono::day{static_cast<unsigned>(date.day())}};
+}
+
+}  // namespace
 
 MediaDialog::MediaDialog(QWidget* parent) : QDialog(parent), ui_(new Ui::MediaDialog) {
   ui_->setupUi(this);
@@ -73,7 +84,7 @@ MediaDialog::MediaDialog(QWidget* parent) : QDialog(parent), ui_(new Ui::MediaDi
 
   connect(ui_->posterLabel, &ClickableLabel::clicked, this, [this](Qt::MouseButton button) {
     if (button == Qt::MouseButton::LeftButton) {
-      QUrl url{sync::animePageUrl(m_anime.id)};
+      QUrl url{taiga_sync::animePageUrl(m_anime.id)};
       QDesktopServices::openUrl(url);
     }
   });
@@ -130,7 +141,7 @@ void MediaDialog::closeEvent(QCloseEvent* event) {
 void MediaDialog::keyPressEvent(QKeyEvent* event) {
   if (event->key() == Qt::Key_F5) {
     imageProvider.fetchPoster(m_anime.id);
-    sync::fetchAnime(m_anime.id);
+    taiga_sync::fetchAnime(m_anime.id);
     return;
   }
 
@@ -166,7 +177,7 @@ void MediaDialog::setAnime(const Anime& anime, const std::optional<ListEntry> en
   initList();
 
   if (anime::isStale(anime)) {
-    sync::fetchAnime(anime.id);
+    taiga_sync::fetchAnime(anime.id);
   }
 }
 
@@ -344,10 +355,10 @@ void MediaDialog::accept() {
   m_entry->status = ui_->comboStatus->currentData().value<anime::list::Status>();
   m_entry->score = ui_->comboScore->currentData().toInt();
   m_entry->date_started = ui_->checkDateStarted->isChecked()
-                              ? FuzzyDate{ui_->dateStarted->date().toStdSysDays()}
+                              ? fuzzyDateFromQDate(ui_->dateStarted->date())
                               : FuzzyDate{};
   m_entry->date_completed = ui_->checkDateCompleted->isChecked()
-                                ? FuzzyDate{ui_->dateCompleted->date().toStdSysDays()}
+                                ? fuzzyDateFromQDate(ui_->dateCompleted->date())
                                 : FuzzyDate{};
   m_entry->notes = ui_->plainTextEditNotes->toPlainText().toStdString();
   m_entry->last_updated = QDateTime::currentSecsSinceEpoch();

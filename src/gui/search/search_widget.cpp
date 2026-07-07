@@ -20,7 +20,7 @@
 
 #include <QToolBar>
 
-#include "gui/common/anime_list_view_cards.hpp"
+#include "gui/common/anime_list_view.hpp"
 #include "gui/models/anime_list_model.hpp"
 #include "gui/models/anime_list_proxy_model.hpp"
 #include "gui/utils/format.hpp"
@@ -35,11 +35,11 @@ SearchWidget::SearchWidget(QWidget* parent)
     : PageWidget(parent),
       m_model(new AnimeListModel(this)),
       m_proxyModel(new AnimeListProxyModel(this)),
-      m_listViewCards(new ListViewCards(this, m_model, m_proxyModel)),
       m_comboYear(new ComboBox(this)),
       m_comboSeason(new ComboBox(this)),
       m_comboType(new ComboBox(this)),
-      m_comboStatus(new ComboBox(this)) {
+      m_comboStatus(new ComboBox(this)),
+      m_listView(new ListView(this, m_model, m_proxyModel)) {
   m_proxyModel->sort(taiga::session.searchListSortColumn(), taiga::session.searchListSortOrder());
   m_proxyModel->setFilters(taiga::session.searchListFilters());
 
@@ -129,7 +129,7 @@ SearchWidget::SearchWidget(QWidget* parent)
   }
 
   // List
-  layout()->addWidget(m_listViewCards);
+  layout()->addWidget(m_listView);
 }
 
 void SearchWidget::saveState() {

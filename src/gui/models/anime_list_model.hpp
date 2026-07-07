@@ -67,6 +67,8 @@ public:
   const ListEntry* getListEntry(const QModelIndex& index) const;
 
 private:
+  void refreshIds();
+
   QList<int> m_ids;
 };
 

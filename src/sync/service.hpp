@@ -21,8 +21,13 @@
 #include <QNetworkRequestFactory>
 #include <QRestAccessManager>
 #include <QString>
+#include <functional>
 
-namespace sync {
+namespace anime {
+class Season;
+}
+
+namespace taiga_sync {
 
 enum class ServiceId {
   Unknown,
@@ -52,7 +57,9 @@ QString serviceName(const ServiceId serviceId);
 QString serviceSlug(const ServiceId serviceId);
 
 void fetchAnime(const int id);
+void fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done = {});
+void synchronize(std::function<void(bool, const QString&)> done = {});
 
 QString animePageUrl(const int id);
 
-}  // namespace sync
+}  // namespace taiga_sync

@@ -35,7 +35,7 @@ namespace anime::list {
 enum class Status;
 }
 
-namespace sync::anilist {
+namespace taiga_sync::anilist {
 
 QJsonObject fromFuzzyDate(const base::FuzzyDate& date);
 QString fromListStatus(const anime::list::Status value);
@@ -45,4 +45,4 @@ QString fromSeasonName(const anime::SeasonName name);
 std::string animePageUrl(const int id);
 std::string requestTokenUrl();
 
-}  // namespace sync::anilist
+}  // namespace taiga_sync::anilist

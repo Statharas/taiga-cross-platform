@@ -45,8 +45,10 @@ public:
 
   void updateItem(const Anime& item);
   void updateEntry(const ListEntry& entry);
+  void clearEntries();
 
 signals:
+  void entriesCleared();
   void itemUpdated(const int id);
   void entryUpdated(const int id);
 

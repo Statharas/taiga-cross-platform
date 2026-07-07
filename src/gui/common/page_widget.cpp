@@ -22,14 +22,14 @@ namespace gui {
 
 PageWidget::PageWidget(QWidget* parent) : QWidget(parent) {
   // Main layout
-  auto layout = new QVBoxLayout(this);
+  auto layout = new QVBoxLayout();
   layout->setContentsMargins(0, 0, 0, 0);
   layout->setSpacing(0);
   setLayout(layout);
 
   // Toolbar layout
-  m_toolbarLayout = new QHBoxLayout(this);
-  m_toolbarLayout->setContentsMargins(16, 8, 16, 8);
+  m_toolbarLayout = new QHBoxLayout();
+  m_toolbarLayout->setContentsMargins(8, 4, 8, 4);
   m_toolbarLayout->addStretch();
   layout->addLayout(m_toolbarLayout);
 

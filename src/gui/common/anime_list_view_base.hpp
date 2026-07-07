@@ -42,8 +42,12 @@ public:
   ~ListViewBase() = default;
 
 public slots:
+  void executeConfiguredDoubleClickAction(const QModelIndex& index);
+  void executeConfiguredMiddleClickAction(const QModelIndex& index);
+  void executeAction(int action, const QModelIndex& index);
   void filterByText(const QString& text);
   void playNextEpisode(const QModelIndex& index);
+  void removeSelectedEntries();
   void showMediaDialog(const QModelIndex& index);
   void showMediaMenu();
   void updateSelectionStatus(const QItemSelection& selected, const QItemSelection& deselected);

@@ -26,19 +26,19 @@ namespace anime::list {
 enum class Status;
 }
 
-namespace sync {
+namespace taiga_sync {
 struct Rating;
 }
 
-namespace sync::myanimelist {
+namespace taiga_sync::myanimelist {
 
 int fromListScore(int value);
 QString fromListStatus(const anime::list::Status value);
 
-QList<sync::Rating> ratingList();
+QList<taiga_sync::Rating> ratingList();
 QString formatRating(const int value);
 
 std::string animePageUrl(const int id);
 std::string authorizationCodeUrl(std::string& codeVerifier);
 
-}  // namespace sync::myanimelist
+}  // namespace taiga_sync::myanimelist

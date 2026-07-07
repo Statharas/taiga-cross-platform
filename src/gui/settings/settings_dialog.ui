@@ -97,7 +97,7 @@
            <item>
             <widget class="QLabel" name="label">
              <property name="text">
-              <string>TODO</string>
+              <string>Settings</string>
              </property>
              <property name="alignment">
               <set>Qt::AlignCenter</set>

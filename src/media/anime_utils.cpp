@@ -29,7 +29,10 @@ namespace {
 
 FuzzyDate dateInJapan() {
   static const auto tz = QTimeZone{"Asia/Tokyo"};
-  return FuzzyDate{QDateTime::currentDateTime(tz).date().toStdSysDays()};
+  const auto date = QDateTime::currentDateTime(tz).date();
+  return FuzzyDate{
+      std::chrono::year{date.year()} / std::chrono::month{static_cast<unsigned>(date.month())} /
+      std::chrono::day{static_cast<unsigned>(date.day())}};
 }
 
 }  // namespace

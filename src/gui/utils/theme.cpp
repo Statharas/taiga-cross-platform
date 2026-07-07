@@ -19,6 +19,8 @@
 #include "theme.hpp"
 
 #include <QApplication>
+#include <QPalette>
+#include <QStyle>
 #include <QStyleHints>
 
 #include "base/file.hpp"
@@ -43,17 +45,27 @@ const QIcon& Theme::getIcon(const QString& key, const QString& extension, bool u
 }
 
 void Theme::initStyle() {
-  qApp->styleHints()->setColorScheme(taiga::settings.appColorScheme());
+  qApp->styleHints()->setColorScheme(Qt::ColorScheme::Light);
 
   connect(qApp->styleHints(), &QStyleHints::colorSchemeChanged, this,
-          [](Qt::ColorScheme scheme) { qApp->styleHints()->setColorScheme(scheme); });
+          [](Qt::ColorScheme) { qApp->styleHints()->setColorScheme(Qt::ColorScheme::Light); });
 
-#ifdef Q_OS_WINDOWS
   qApp->setStyle("fusion");
+  auto palette = qApp->style()->standardPalette();
+  palette.setColor(QPalette::Window, QColor("#f0f0f0"));
+  palette.setColor(QPalette::WindowText, Qt::black);
+  palette.setColor(QPalette::Base, Qt::white);
+  palette.setColor(QPalette::AlternateBase, QColor("#f7f7f7"));
+  palette.setColor(QPalette::Text, Qt::black);
+  palette.setColor(QPalette::Button, QColor("#f0f0f0"));
+  palette.setColor(QPalette::ButtonText, Qt::black);
+  palette.setColor(QPalette::Highlight, QColor("#3399ff"));
+  palette.setColor(QPalette::HighlightedText, Qt::white);
+  qApp->setPalette(palette);
+
   const QString mainStylesheet = readStylesheet("main");
-  const QString themeStylesheet = readStylesheet(isDark() ? "dark" : "light");
+  const QString themeStylesheet = readStylesheet("light");
   qApp->setStyleSheet(mainStylesheet + themeStylesheet);
-#endif
 }
 
 bool Theme::isDark() const {

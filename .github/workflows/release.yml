@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, for example 2.0.1
+        required: true
+        type: string
+      prerelease:
+        description: Prerelease suffix, for example alpha, beta, or empty
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare submodule URLs
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+      - name: Check out submodules
+        run: git submodule update --init --recursive
+
+      - name: Apply third-party portability patches
+        run: bash scripts/apply-third-party-portability-patches.sh
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgl1-mesa-dev libxkbcommon-dev
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DTAIGA_BUILD_QT_APP=ON -DTAIGA_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --target taiga taiga-core-tests taiga-settings-dialog-tests taiga-main-ui-parity-tests --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Bump version
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          version = os.environ["RELEASE_VERSION"]
+          prerelease = os.environ["RELEASE_PRERELEASE"]
+          major, minor, patch = version.split(".")
+
+          cmake = Path("CMakeLists.txt")
+          text = cmake.read_text()
+          text = re.sub(
+              r"(project\(Taiga\s+VERSION\s+)[0-9]+\.[0-9]+\.[0-9]+",
+              rf"\g<1>{version}",
+              text,
+              count=1,
+          )
+          cmake.write_text(text)
+
+          config = Path("src/taiga/config.h")
+          text = config.read_text()
+          replacements = {
+              r"#define TAIGA_VERSION_MAJOR\s+[0-9]+": f"#define TAIGA_VERSION_MAJOR {major}",
+              r"#define TAIGA_VERSION_MINOR\s+[0-9]+": f"#define TAIGA_VERSION_MINOR {minor}",
+              r"#define TAIGA_VERSION_PATCH\s+[0-9]+": f"#define TAIGA_VERSION_PATCH {patch}",
+              r'#define TAIGA_VERSION_PRE\s+".*"': f'#define TAIGA_VERSION_PRE   "{prerelease}"',
+          }
+          for pattern, replacement in replacements.items():
+              text = re.sub(pattern, replacement, text, count=1)
+          config.write_text(text)
+          PY
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_PRERELEASE: ${{ inputs.prerelease }}
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CMakeLists.txt src/taiga/config.h
+          git commit -m "Release v${{ inputs.version }}"
+          git tag "v${{ inputs.version }}"
+          git push
+          git push origin "v${{ inputs.version }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          generate_release_notes: true
+          prerelease: ${{ inputs.prerelease != '' }}

@@ -18,11 +18,14 @@
 
 #include "image_provider.hpp"
 
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QUrl>
 
 #include "base/string.hpp"
 #include "media/anime_db.hpp"
@@ -32,17 +35,29 @@
 namespace gui {
 
 void ImageProvider::fetchPoster(const int id) {
+  if (m_pending.contains(id)) return;
+
   const auto item = anime::db.item(id);
 
   if (!item || item->image_url.empty()) return;
 
-  const auto url = QString::fromStdString(item->image_url);
+  const QUrl url{QString::fromStdString(item->image_url)};
+  if (!url.isValid() || url.scheme().isEmpty()) return;
+
+  m_pending.insert(id);
   const auto reply = taiga::network()->get(QNetworkRequest{url});
 
   connect(reply, &QNetworkReply::finished, this, [this, id, reply]() {
+    m_pending.remove(id);
+    if (reply->error() != QNetworkReply::NoError) return;
+
+    const auto payload = reply->readAll();
+    if (payload.isEmpty() || QImage::fromData(payload).isNull()) return;
+
     QFile file{fileName(id)};
+    QDir{}.mkpath(QFileInfo{file}.absolutePath());
     if (!file.open(QIODevice::WriteOnly)) return;
-    file.write(reply->readAll());
+    file.write(payload);
     reloadPoster(id);
   });
 }

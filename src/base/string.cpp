@@ -69,5 +69,10 @@ QString& replaceWholeWord(QString& str, const QString& before, const QString& af
 }
 
 std::vector<std::string> toVector(const QStringList& list) {
-  return list | std::views::transform(toStdString) | std::ranges::to<std::vector>();
+  std::vector<std::string> values;
+  values.reserve(list.size());
+  for (const auto& item : list) {
+    values.emplace_back(toStdString(item));
+  }
+  return values;
 }

@@ -19,15 +19,19 @@
 #include "service.hpp"
 
 #include <QMap>
+#include <utility>
 
 #include "sync/anilist.hpp"
 #include "sync/anilist_utils.hpp"
+#include "sync/kitsu.hpp"
 #include "sync/kitsu_utils.hpp"
+#include "sync/myanimelist.hpp"
 #include "sync/myanimelist_utils.hpp"
+#include "media/anime_season.hpp"
 #include "taiga/network.hpp"
 #include "taiga/settings.hpp"
 
-namespace sync {
+namespace taiga_sync {
 
 Service::Service() : QObject{qApp}, manager_{taiga::network()} {
   api_.setCommonHeaders(taiga::NetworkAccessManager::commonHeaders());
@@ -81,6 +85,37 @@ void fetchAnime(const int id) {
   }
 }
 
+void fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done) {
+  switch (currentServiceId()) {
+    case ServiceId::MyAnimeList:
+      myanimelist::Service::instance()->fetchSeason(season, std::move(done));
+      break;
+    case ServiceId::Kitsu:
+      kitsu::Service::instance()->fetchSeason(season, std::move(done));
+      break;
+    case ServiceId::AniList:
+      anilist::Service::instance()->fetchSeason(season, std::move(done));
+      break;
+    case ServiceId::Unknown:
+      if (done) done(false, "No active metadata service is configured.");
+      break;
+  }
+}
+
+void synchronize(std::function<void(bool, const QString&)> done) {
+  switch (currentServiceId()) {
+    case ServiceId::MyAnimeList:
+      myanimelist::Service::instance()->fetchListEntries(std::move(done));
+      break;
+    case ServiceId::Kitsu:
+      kitsu::Service::instance()->fetchListEntries(std::move(done));
+      break;
+    case ServiceId::AniList:
+      anilist::Service::instance()->fetchListEntries(std::move(done));
+      break;
+  }
+}
+
 QString animePageUrl(const int id) {
   switch (currentServiceId()) {
     case ServiceId::MyAnimeList:
@@ -93,4 +128,4 @@ QString animePageUrl(const int id) {
   return {};
 }
 
-}  // namespace sync
+}  // namespace taiga_sync

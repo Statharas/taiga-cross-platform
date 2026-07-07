@@ -19,6 +19,7 @@
 #include "path.hpp"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QStandardPaths>
 #include <format>
 
@@ -31,8 +32,12 @@ std::string get_data_path() {
 #ifdef TAIGA_PORTABLE
   return std::format("{}/data", QCoreApplication::applicationDirPath().toStdString());
 #else
-  const auto location = QStandardPaths::standardLocations(QStandardPaths::AppDataLocation);
-  return std::format("{}/data", location.first().toStdString());
+  auto location = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+  if (location.isEmpty()) {
+    location = QDir::home().filePath(".local/share/taiga");
+  }
+  QDir{}.mkpath(location);
+  return std::format("{}/data", location.toStdString());
 #endif
 }
 

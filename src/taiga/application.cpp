@@ -37,7 +37,8 @@
 namespace taiga {
 
 Application::Application(int argc, char* argv[])
-    : QApplication(argc, argv), shared_memory_("Taiga") {
+    : QApplication(argc, argv),
+      instance_lock_(QString::fromStdString(std::format("{}/taiga.lock", get_data_path()))) {
   setApplicationName("taiga");
   setApplicationDisplayName("Taiga");
   setApplicationVersion(QString::fromStdString(taiga::version().to_string()));
@@ -104,7 +105,8 @@ gui::MainWindow* Application::mainWindow() const {
 }
 
 bool Application::hasPreviousInstance() {
-  return !shared_memory_.create(1);
+  instance_lock_.setStaleLockTime(0);
+  return !instance_lock_.tryLock();
 }
 
 void Application::initLogger() const {
@@ -136,6 +138,7 @@ void Application::parseCommandLine() {
   options_.debug = parser_.isSet("debug");
 #endif
   options_.verbose = parser_.isSet("verbose");
+  setProperty("taiga.debug", options_.debug);
 }
 
 }  // namespace taiga

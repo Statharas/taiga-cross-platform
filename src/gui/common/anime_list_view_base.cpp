@@ -20,8 +20,13 @@
 
 #include <QLineEdit>
 #include <QListView>
+#include <QDesktopServices>
+#include <QDateTime>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QStatusBar>
 #include <QTreeView>
+#include <QUrl>
 
 #include "gui/main/main_window.hpp"
 #include "gui/main/navigation_item_delegate.hpp"
@@ -33,8 +38,12 @@
 #include "gui/models/anime_list_proxy_model.hpp"
 #include "gui/utils/format.hpp"
 #include "media/anime.hpp"
+#include "media/anime_db.hpp"
 #include "media/anime_list.hpp"
+#include "sync/service.hpp"
+#include "taiga/settings.hpp"
 #include "track/play.hpp"
+#include "track/scanner.hpp"
 
 namespace gui {
 
@@ -49,7 +58,8 @@ ListViewBase::ListViewBase(QWidget* parent, QAbstractItemView* view, AnimeListMo
 
   connect(mainWindow()->searchBox(), &QLineEdit::textChanged, this, &ListViewBase::filterByText);
 
-  connect(m_view, &QAbstractItemView::doubleClicked, this, &ListViewBase::showMediaDialog);
+  connect(m_view, &QAbstractItemView::doubleClicked, this,
+          &ListViewBase::executeConfiguredDoubleClickAction);
 
   connect(m_view, &QWidget::customContextMenuRequested, this, &ListViewBase::showMediaMenu);
 
@@ -57,15 +67,87 @@ ListViewBase::ListViewBase(QWidget* parent, QAbstractItemView* view, AnimeListMo
           &ListViewBase::updateSelectionStatus);
 }
 
+void ListViewBase::executeConfiguredDoubleClickAction(const QModelIndex& index) {
+  executeAction(taiga::settings.intValue("program.list.doubleClickAction", 4), index);
+}
+
+void ListViewBase::executeConfiguredMiddleClickAction(const QModelIndex& index) {
+  executeAction(taiga::settings.intValue("program.list.middleClickAction", 3), index);
+}
+
+void ListViewBase::executeAction(int action, const QModelIndex& index) {
+  const auto mappedIndex = m_proxyModel->mapToSource(index);
+  const auto anime = m_model->getAnime(mappedIndex);
+  if (!anime) return;
+  const auto entry = m_model->getListEntry(mappedIndex);
+
+  switch (action) {
+    case 0:
+      return;
+    case 1:
+      MediaDialog::show(mainWindow(), MediaDialogPage::List, *anime,
+                        entry ? std::optional<ListEntry>{*entry} : std::nullopt);
+      return;
+    case 2: {
+      for (const auto& path : taiga::settings.libraryFolders()) {
+        const auto folder = track::findFolder(QString::fromStdString(path), anime->id);
+        if (folder) {
+          QDesktopServices::openUrl(QUrl::fromLocalFile(*folder));
+          return;
+        }
+      }
+      QMessageBox::information(mainWindow(), tr("Open Folder"),
+                               tr("Could not find folder for %1.")
+                                   .arg(QString::fromStdString(anime->titles.romaji)));
+      return;
+    }
+    case 3:
+      track::playNextEpisode(anime->id);
+      return;
+    case 4:
+      MediaDialog::show(mainWindow(), MediaDialogPage::Details, *anime,
+                        entry ? std::optional<ListEntry>{*entry} : std::nullopt);
+      return;
+    case 5:
+      QDesktopServices::openUrl(QUrl{taiga_sync::animePageUrl(anime->id)});
+      return;
+    default:
+      return;
+  }
+}
+
 void ListViewBase::filterByText(const QString& text) {
   m_proxyModel->setTextFilter(text);
 }
 
 void ListViewBase::playNextEpisode(const QModelIndex& index) {
-  const auto mappedIndex = m_proxyModel->mapToSource(index);
-  const auto anime = m_model->getAnime(mappedIndex);
-  if (!anime) return;
-  track::playNextEpisode(anime->id);
+  executeAction(3, index);
+}
+
+void ListViewBase::removeSelectedEntries() {
+  const auto indexes = selectedIndexes();
+  if (indexes.isEmpty()) return;
+
+  QMessageBox msgBox(mainWindow());
+  msgBox.setIcon(QMessageBox::Icon::Question);
+  msgBox.setText(tr("Do you want to remove selected items from your list?"));
+  QAbstractButton* removeButton = msgBox.addButton(tr("Remove"), QMessageBox::DestructiveRole);
+  msgBox.addButton(QMessageBox::Cancel);
+  msgBox.setDefaultButton(QMessageBox::Cancel);
+  msgBox.exec();
+  if (msgBox.clickedButton() != removeButton) return;
+
+  for (const auto& selectedIndex : indexes) {
+    const auto index = m_proxyModel->mapToSource(selectedIndex);
+    if (const auto anime = m_model->getAnime(index)) {
+      auto entry = m_model->getListEntry(index) ? *m_model->getListEntry(index) : ListEntry{};
+      entry.id = anime->id;
+      entry.anime_id = anime->id;
+      entry.status = anime::list::Status::NotInList;
+      entry.last_updated = QDateTime::currentSecsSinceEpoch();
+      anime::db.updateEntry(entry);
+    }
+  }
 }
 
 void ListViewBase::showMediaDialog(const QModelIndex& index) {

@@ -18,6 +18,7 @@
 
 #include "settings.hpp"
 
+#include <QMap>
 #include <QXmlStreamReader>
 #include <chrono>
 
@@ -34,6 +35,7 @@ namespace compat::v1 {
 
 void parseAccountElement(QXmlStreamReader&, const taiga::Settings&, const taiga::Accounts&);
 void parseAnimeElement(QXmlStreamReader&, const taiga::Settings&);
+void parseGenericSettingsElement(QXmlStreamReader&, const taiga::Settings&, QStringList path);
 void parseRecognitionElement(QXmlStreamReader&, const taiga::Settings&);
 
 void readSettings(const std::string& path, const taiga::Settings& settings,
@@ -56,8 +58,9 @@ void readSettings(const std::string& path, const taiga::Settings& settings,
       parseAnimeElement(xml, settings);
     } else if (xml.name() == u"recognition") {
       parseRecognitionElement(xml, settings);
+    } else if (xml.name() == u"program" || xml.name() == u"announce" || xml.name() == u"rss") {
+      parseGenericSettingsElement(xml, settings, {xml.name().toString()});
     } else {
-      // @TODO: program, announce, rss
       xml.skipCurrentElement();
     }
   }
@@ -129,6 +132,104 @@ void parseRecognitionElement(QXmlStreamReader& xml, const taiga::Settings& setti
     } else {
       xml.skipCurrentElement();
     }
+  }
+}
+
+QString mappedSettingsKey(const QString& oldPath) {
+  static const QMap<QString, QString> table{
+      {"program/general/autostart", "program.general.autostart"},
+      {"program/general/closetotray", "program.general.closeToTray"},
+      {"program/general/externallinks", "program.general.externalLinks"},
+      {"program/general/hidesidebar", "program.general.hideSidebar"},
+      {"program/general/minimizetotray", "program.general.minimizeToTray"},
+      {"program/startup/checkepisodes", "program.startup.checkEpisodes"},
+      {"program/startup/checkversion", "program.startup.checkVersion"},
+      {"program/startup/minimize", "program.startup.minimize"},
+      {"program/connection/norevoke", "program.connection.noRevoke"},
+      {"program/connection/reuseactive", "program.connection.reuseActive"},
+      {"program/proxy/host", "program.proxy.host"},
+      {"program/proxy/password", "program.proxy.password"},
+      {"program/proxy/username", "program.proxy.username"},
+      {"program/list/action/doubleclick", "program.list.doubleClickAction"},
+      {"program/list/action/middleclick", "program.list.middleClickAction"},
+      {"program/list/action/titlelang", "program.list.titleLanguage"},
+      {"program/list/filter/episodes/highlight", "program.list.highlightNewEpisodes"},
+      {"program/list/filter/episodes/highlightedontop", "program.list.highlightedOnTop"},
+      {"program/list/progress/showaired", "program.list.progressAired"},
+      {"program/list/progress/showavailable", "program.list.progressAvailable"},
+      {"program/exit/rememberposition", "program.exit.rememberPosition"},
+      {"program/position/width", "program.position.width"},
+      {"program/position/height", "program.position.height"},
+      {"announce/discord/enabled", "announce.discord.enabled"},
+      {"announce/discord/group", "announce.discord.group"},
+      {"announce/discord/time", "announce.discord.time"},
+      {"announce/discord/username", "announce.discord.username"},
+      {"announce/http/enabled", "announce.http.enabled"},
+      {"announce/http/format", "announce.http.format"},
+      {"announce/http/url", "announce.http.url"},
+      {"announce/mirc/channels", "announce.mirc.channels"},
+      {"announce/mirc/command", "announce.mirc.command"},
+      {"announce/mirc/enabled", "announce.mirc.enabled"},
+      {"announce/mirc/format", "announce.mirc.format"},
+      {"announce/mirc/mode", "announce.mirc.mode"},
+      {"announce/mirc/multiserver", "announce.mirc.multiServer"},
+      {"announce/mirc/service", "announce.mirc.service"},
+      {"announce/mirc/useaction", "announce.mirc.useAction"},
+      {"rss/torrent/appmode", "rss.torrent.appMode"},
+      {"rss/torrent/apppath", "rss.torrent.appPath"},
+      {"rss/torrent/autocheck", "rss.torrent.autoCheck"},
+      {"rss/torrent/checkinterval", "rss.torrent.checkInterval"},
+      {"rss/torrent/createsubfolder", "rss.torrent.createSubfolder"},
+      {"rss/torrent/downloadlocation", "rss.torrent.downloadLocation"},
+      {"rss/torrent/downloadsortby", "rss.torrent.downloadSortBy"},
+      {"rss/torrent/downloadsortorder", "rss.torrent.downloadSortOrder"},
+      {"rss/torrent/fallbackfolder", "rss.torrent.fallbackFolder"},
+      {"rss/torrent/filedownloadlocation", "rss.torrent.fileDownloadLocation"},
+      {"rss/torrent/newaction", "rss.torrent.newAction"},
+      {"rss/torrent/openapp", "rss.torrent.openApp"},
+      {"rss/torrent/search", "rss.torrent.search"},
+      {"rss/torrent/source", "rss.torrent.source"},
+      {"rss/torrent/useanimefolder", "rss.torrent.useAnimeFolder"},
+      {"rss/torrent/usemagnet", "rss.torrent.useMagnet"},
+      {"rss/torrent/filters/archivemaxcount", "rss.torrent.filters.archiveMaxCount"},
+      {"rss/torrent/filters/enabled", "rss.torrent.filters.enabled"},
+  };
+  return table.value(oldPath.toLower());
+}
+
+void writeMappedSetting(const taiga::Settings& settings, const QString& key,
+                        const QString& value) {
+  if (value.compare("true", Qt::CaseInsensitive) == 0 || value == "1") {
+    settings.setBoolValue(key, true);
+    return;
+  }
+  if (value.compare("false", Qt::CaseInsensitive) == 0 || value == "0") {
+    settings.setBoolValue(key, false);
+    return;
+  }
+
+  bool ok = false;
+  const auto intValue = value.toInt(&ok);
+  if (ok) {
+    settings.setIntValue(key, intValue);
+  } else {
+    settings.setStringValue(key, value);
+  }
+}
+
+void parseGenericSettingsElement(QXmlStreamReader& xml, const taiga::Settings& settings,
+                                 QStringList path) {
+  for (const auto& attribute : xml.attributes()) {
+    const auto key = mappedSettingsKey((path + QStringList{attribute.name().toString()}).join('/'));
+    if (!key.isEmpty()) {
+      writeMappedSetting(settings, key, attribute.value().toString());
+    }
+  }
+
+  while (xml.readNextStartElement()) {
+    auto childPath = path;
+    childPath.push_back(xml.name().toString());
+    parseGenericSettingsElement(xml, settings, childPath);
   }
 }
 

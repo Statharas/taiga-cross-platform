@@ -34,6 +34,7 @@ struct HistoryItem {
 
 class History {
 public:
+  void clear();
   void init();
 
   const QList<HistoryItem>& items() const;

@@ -28,7 +28,7 @@
 #include "media/anime_list.hpp"
 #include "media/anime_season.hpp"
 
-namespace sync::anilist {
+namespace taiga_sync::anilist {
 
 QJsonObject fromFuzzyDate(const FuzzyDate& date) {
   return {
@@ -84,4 +84,4 @@ std::string requestTokenUrl() {
   return url.toString().toStdString();
 }
 
-}  // namespace sync::anilist
+}  // namespace taiga_sync::anilist

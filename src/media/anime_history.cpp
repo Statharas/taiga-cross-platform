@@ -18,6 +18,7 @@
 
 #include "anime_history.hpp"
 
+#include <QFile>
 #include <format>
 
 #include "compat/history.hpp"
@@ -27,14 +28,23 @@
 
 namespace anime {
 
-void History::init() {
-  const auto path = []() {
+namespace {
+
+std::string historyPath() {
     const auto service = taiga::settings.service();
     return std::format("{}/v1/user/{}@{}/history.xml", taiga::get_data_path(),
                        taiga::accounts.serviceUsername(service), service);
-  }();
+}
 
-  items_ = compat::v1::readHistory(path);
+}  // namespace
+
+void History::clear() {
+  items_.clear();
+  QFile::remove(QString::fromStdString(historyPath()));
+}
+
+void History::init() {
+  items_ = compat::v1::readHistory(historyPath());
 }
 
 const QList<HistoryItem>& History::items() const {

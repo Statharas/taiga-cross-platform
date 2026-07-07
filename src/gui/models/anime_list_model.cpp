@@ -33,14 +33,29 @@
 namespace gui {
 
 AnimeListModel::AnimeListModel(QObject* parent) : QAbstractListModel(parent) {
-  beginInsertRows({}, 0, anime::db.items().size());
-  m_ids = anime::db.items().keys();
-  endInsertRows();
+  refreshIds();
 
   connect(&imageProvider, &ImageProvider::posterChanged, this, [this](int id) {
     if (const auto row = m_ids.indexOf(id); row > -1) {
       emit dataChanged(index(row), index(row), {static_cast<int>(AnimeListItemDataRole::Poster)});
     }
+  });
+  connect(&anime::db, &anime::Database::entriesCleared, this, &AnimeListModel::refreshIds);
+  connect(&anime::db, &anime::Database::itemUpdated, this, [this](int id) {
+    const auto row = m_ids.indexOf(id);
+    if (row == -1) {
+      refreshIds();
+      return;
+    }
+    emit dataChanged(index(row, 0), index(row, NUM_COLUMNS - 1));
+  });
+  connect(&anime::db, &anime::Database::entryUpdated, this, [this](int id) {
+    const auto row = m_ids.indexOf(id);
+    if (row == -1) {
+      refreshIds();
+      return;
+    }
+    emit dataChanged(index(row, 0), index(row, NUM_COLUMNS - 1));
   });
 }
 
@@ -262,6 +277,12 @@ const Anime* AnimeListModel::getAnime(const QModelIndex& index) const {
 const ListEntry* AnimeListModel::getListEntry(const QModelIndex& index) const {
   if (!index.isValid()) return nullptr;
   return anime::db.entry(m_ids.at(index.row()));
+}
+
+void AnimeListModel::refreshIds() {
+  beginResetModel();
+  m_ids = anime::db.items().keys();
+  endResetModel();
 }
 
 }  // namespace gui

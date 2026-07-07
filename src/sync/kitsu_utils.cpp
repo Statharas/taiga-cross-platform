@@ -20,10 +20,10 @@
 
 #include <format>
 
-namespace sync::kitsu {
+namespace taiga_sync::kitsu {
 
 std::string animePageUrl(const int id) {
   return std::format("https://kitsu.app/anime/{}", id);
 }
 
-}  // namespace sync::kitsu
+}  // namespace taiga_sync::kitsu

@@ -20,27 +20,35 @@
 
 #include "sync/service.hpp"
 
-namespace sync::anilist {
+#include <functional>
 
-class Service final : public sync::Service {
+namespace anime {
+class Season;
+}
+
+namespace taiga_sync::anilist {
+
+class Service final : public taiga_sync::Service {
 public:
   Service();
 
   static Service* instance();
 
-  void authenticateUser();
+  void authenticateUser(std::function<void(bool, const QString&)> done = {});
   void fetchAnime(const int id);
+  void fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done = {});
   void search(const QString& query);
-  void fetchListEntries();
+  void fetchListEntries(std::function<void(bool, const QString&)> done = {});
   void addListEntry();
   void deleteListEntry(const int id);
   void updateListEntry();
 
 private:
+  bool applyBearerToken();
   QString gql(const QString& name) const;
 
   bool isError(const QRestReply& reply) const;
   void handleError(const QRestReply& reply, const QString& message = {}) const;
 };
 
-}  // namespace sync::anilist
+}  // namespace taiga_sync::anilist

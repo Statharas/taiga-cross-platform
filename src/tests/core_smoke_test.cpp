@@ -1,0 +1,164 @@
+#include <QCoreApplication>
+
+#include <cstdlib>
+#include <iostream>
+#include <string>
+
+#include <QJsonDocument>
+#include <QJsonObject>
+
+#include <anisthesia.hpp>
+
+#include "base/rss.hpp"
+#include "media/anime.hpp"
+#include "media/anime_list.hpp"
+#include "media/anime_list_utils.hpp"
+#include "media/anime_season.hpp"
+#include "media/anime_season_db.hpp"
+#include "sync/anilist_parsers.hpp"
+#include "sync/kitsu_parsers.hpp"
+#include "sync/myanimelist_parsers.hpp"
+#include "taiga/version.hpp"
+#include "track/torrent_feed.hpp"
+#include "track/recognition_normalize.hpp"
+
+namespace {
+
+void require(bool condition, const char* message) {
+  if (!condition) {
+    std::cerr << message << '\n';
+    std::exit(EXIT_FAILURE);
+  }
+}
+
+}  // namespace
+
+int main(int argc, char* argv[]) {
+  QCoreApplication app(argc, argv);
+
+  require(taiga::version().major == 2, "Unexpected major version");
+  require(track::recognition::normalize("Nisekoi: Season 2") == "nisekoi2",
+          "Season normalization changed");
+  require(track::recognition::normalize("The iDOLM@STER") == "idolmaster",
+          "Title transliteration changed");
+
+  const auto entryJson = QJsonDocument::fromJson(R"({
+    "id": 42,
+    "status": "REPEATING",
+    "score": 87,
+    "progress": 12,
+    "repeat": 1,
+    "private": true,
+    "notes": "rewatch",
+    "startedAt": {"year": 2024, "month": 1, "day": 2},
+    "completedAt": {"year": 2024, "month": 2, "day": 3},
+    "updatedAt": 1700000000,
+    "media": {"id": 100}
+  })").object();
+  const auto entry = taiga_sync::anilist::parseMediaListEntry(entryJson);
+  require(entry.has_value(), "AniList list entry parser rejected valid JSON");
+  require(entry->anime_id == 100, "AniList list entry anime id changed");
+  require(entry->rewatching, "AniList REPEATING status should become rewatching");
+  require(entry->status == anime::list::Status::Watching,
+          "AniList REPEATING status should display as watching");
+
+  const auto anilistMediaJson = QJsonDocument::fromJson(R"({
+    "id": 100,
+    "episodes": null,
+    "duration": 24,
+    "status": "RELEASING",
+    "format": "TV",
+    "startDate": {"year": 2026, "month": 7, "day": 1},
+    "endDate": {},
+    "averageScore": 75,
+    "popularity": 1234,
+    "coverImage": {"extraLarge": "https://example.test/poster.jpg"},
+    "title": {"romaji": "Example", "english": "Example", "native": "Example"},
+    "countryOfOrigin": "JP"
+  })").object();
+  const auto anilistMedia = taiga_sync::anilist::parseMedia(anilistMediaJson);
+  require(anilistMedia.has_value(), "AniList media parser rejected valid JSON");
+  require(anilistMedia->episode_count == anime::kUnknownEpisodeCount,
+          "AniList null episode count should remain unknown");
+
+  const auto malJson = QJsonDocument::fromJson(R"({
+    "status": "watching",
+    "score": 8,
+    "num_episodes_watched": 4,
+    "is_rewatching": true,
+    "updated_at": "2024-01-02T03:04:05+00:00",
+    "start_date": "2024-01-01",
+    "finish_date": "2024-02-01",
+    "num_times_rewatched": 1,
+    "comments": "notes"
+  })").object();
+  const auto malEntry = taiga_sync::myanimelist::parseListEntry(malJson, 200);
+  require(malEntry.has_value(), "MAL list entry parser rejected valid JSON");
+  require(malEntry->anime_id == 200, "MAL list entry anime id changed");
+  require(malEntry->score == 80, "MAL score conversion changed");
+  require(malEntry->rewatching, "MAL rewatching flag changed");
+
+  const auto kitsuJson = QJsonDocument::fromJson(R"({
+    "id": "55",
+    "attributes": {
+      "status": "current",
+      "progress": 9,
+      "ratingTwenty": 16,
+      "private": true,
+      "reconsumeCount": 2,
+      "reconsuming": true,
+      "startedAt": "2024-01-02T00:00:00.000Z",
+      "finishedAt": "2024-02-03T00:00:00.000Z",
+      "updatedAt": "2024-02-04T00:00:00.000Z",
+      "notes": "kitsu notes"
+    }
+  })").object();
+  const auto kitsuEntry = taiga_sync::kitsu::parseListEntry(kitsuJson, 300);
+  require(kitsuEntry.has_value(), "Kitsu list entry parser rejected valid JSON");
+  require(kitsuEntry->id == 55, "Kitsu list entry id changed");
+  require(kitsuEntry->anime_id == 300, "Kitsu list entry anime id changed");
+  require(kitsuEntry->score == 80, "Kitsu score conversion changed");
+
+  const auto feed = rss::parseDocument(R"(
+    <rss><channel><title>Nyaa</title>
+      <item>
+        <title>[Group] Example Anime - 01 [1080p]</title>
+        <link>magnet:?xt=urn:btih:test</link>
+        <pubDate>Tue, 07 Jul 2026 12:00:00 GMT</pubDate>
+        <enclosure url="https://example.test/file.torrent" length="1048576" type="application/x-bittorrent"/>
+      </item>
+    </channel></rss>
+  )");
+  require(feed.items.size() == 1, "RSS parser did not read torrent item");
+  const auto torrents = track::torrent::parseFeed(R"(
+    <rss><channel><title>Nyaa</title>
+      <item><title>[Group] Example Anime - 01 [1080p]</title><link>magnet:?xt=urn:btih:test</link></item>
+    </channel></rss>
+  )");
+  require(torrents.size() == 1, "Torrent feed parser rejected valid RSS");
+  require(torrents.front().state == track::torrent::ItemState::Preferred,
+          "Torrent default resolution preference changed");
+
+  Anime unknownEpisodeAnime;
+  unknownEpisodeAnime.episode_count = anime::kUnknownEpisodeCount;
+  ListEntry unknownEpisodeEntry;
+  unknownEpisodeEntry.watched_episodes = 0;
+  require(anime::list::getProgressRatio(&unknownEpisodeAnime, &unknownEpisodeEntry) == 0.0f,
+          "Unknown episode count should not draw arbitrary progress");
+
+  const auto season = anime::Season{anime::SeasonName::Summer, std::chrono::year{2026}};
+  anime::season_db.set(season, {100, 200});
+  require(anime::season_db.matches(season), "Season database did not retain current season");
+  require(anime::season_db.items.size() == 2, "Season database did not retain season ids");
+  anime::season_db.reset();
+  require(!anime::season_db.matches(season), "Season database reset did not clear current season");
+  require(anime::season_db.items.isEmpty(), "Season database reset did not clear ids");
+
+  std::vector<anisthesia::Result> mediaResults;
+  const auto rejectAllMedia = [](const anisthesia::MediaInfo&) { return false; };
+  require(!anisthesia::GetResults({}, rejectAllMedia, mediaResults),
+          "Anisthesia platform bridge should reject all media when the filter rejects it");
+  require(mediaResults.empty(), "Anisthesia platform bridge should leave no rejected results");
+
+  return EXIT_SUCCESS;
+}

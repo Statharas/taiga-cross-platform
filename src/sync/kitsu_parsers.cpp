@@ -19,13 +19,63 @@
 #include "kitsu_parsers.hpp"
 
 #include <QDateTime>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QMap>
 
+#include "base/chrono.hpp"
 #include "media/anime.hpp"
 #include "media/anime_list.hpp"
+#include "sync/kitsu_ratings.hpp"
 #include "sync/service.hpp"
 
-namespace sync::kitsu {
+namespace taiga_sync::kitsu {
+
+namespace {
+
+std::string titleValue(const QJsonObject& titles, const QString& key) {
+  return titles.value(key).toString().toStdString();
+}
+
+QString posterUrl(const QJsonObject& attributes) {
+  const auto poster = attributes.value("posterImage").toObject();
+  for (const auto& key : {"original", "large", "medium", "small"}) {
+    const auto value = poster.value(key).toString();
+    if (!value.isEmpty()) return value;
+  }
+  return {};
+}
+
+}  // namespace
+
+std::optional<Anime> parseMedia(const QJsonObject& object) {
+  const auto id = object.value("id").toString().toInt();
+  if (id == anime::kUnknownId) return {};
+
+  const auto attributes = object.value("attributes").toObject();
+  const auto titles = attributes.value("titles").toObject();
+
+  Anime anime;
+  anime.id = id;
+  anime.titles.romaji = attributes.value("canonicalTitle").toString().toStdString();
+  anime.titles.english = titleValue(titles, "en");
+  anime.titles.japanese = titleValue(titles, "ja_jp");
+  if (anime.titles.romaji.empty()) anime.titles.romaji = titleValue(titles, "en_jp");
+  anime.type = parseType(attributes.value("subtype").toString());
+  anime.status = parseStatus(attributes.value("status").toString());
+  anime.synopsis = attributes.value("synopsis").toString().toStdString();
+  anime.date_started = FuzzyDate{attributes.value("startDate").toString().toStdString()};
+  anime.date_finished = FuzzyDate{attributes.value("endDate").toString().toStdString()};
+  const auto episodeCount = attributes.value("episodeCount");
+  anime.episode_count =
+      episodeCount.isDouble() ? episodeCount.toInt() : anime::kUnknownEpisodeCount;
+  anime.episode_length = attributes.value("episodeLength").toInt(anime::kUnknownEpisodeLength);
+  anime.score = static_cast<float>(parseScore(attributes.value("averageRating").toString()));
+  anime.popularity_rank = attributes.value("popularityRank").toInt();
+  anime.age_rating = parseAgeRating(attributes.value("ageRating").toString());
+  anime.image_url = posterUrl(attributes).toStdString();
+  return anime;
+}
 
 anime::AgeRating parseAgeRating(const QString& value) {
   static const QMap<QString, anime::AgeRating> table{
@@ -110,4 +160,24 @@ QString fromListStatus(const anime::list::Status value) {
   return "";
 }
 
-}  // namespace sync::kitsu
+std::optional<ListEntry> parseListEntry(const QJsonObject& object, int animeId) {
+  if (animeId == anime::kUnknownId) return {};
+
+  const auto attributes = object.value("attributes").toObject();
+  ListEntry entry;
+  entry.id = object.value("id").toString().toLongLong();
+  entry.anime_id = animeId;
+  entry.status = parseListStatus(attributes.value("status").toString());
+  entry.watched_episodes = attributes.value("progress").toInt();
+  entry.score = parseListScore(attributes.value("ratingTwenty").toInt());
+  entry.is_private = attributes.value("private").toBool();
+  entry.rewatched_times = attributes.value("reconsumeCount").toInt();
+  entry.rewatching = attributes.value("reconsuming").toBool();
+  entry.date_started = FuzzyDate{parseListDate(attributes.value("startedAt").toString()).toStdString()};
+  entry.date_completed = FuzzyDate{parseListDate(attributes.value("finishedAt").toString()).toStdString()};
+  entry.last_updated = parseListLastUpdated(attributes.value("updatedAt").toString());
+  entry.notes = attributes.value("notes").toString().toStdString();
+  return entry;
+}
+
+}  // namespace taiga_sync::kitsu

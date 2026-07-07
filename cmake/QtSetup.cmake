@@ -4,7 +4,7 @@ set(CMAKE_AUTOUIC OFF)
 
 list(APPEND CMAKE_PREFIX_PATH "%QTDIR%/lib/cmake")
 
-find_package(Qt6 REQUIRED COMPONENTS
+set(TAIGA_QT_COMPONENTS
 	Core
 	Gui
 	LinguistTools
@@ -13,6 +13,12 @@ find_package(Qt6 REQUIRED COMPONENTS
 	Svg
 	Widgets
 )
+
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	list(APPEND TAIGA_QT_COMPONENTS DBus)
+endif()
+
+find_package(Qt6 REQUIRED COMPONENTS ${TAIGA_QT_COMPONENTS})
 
 qt_standard_project_setup(
 	REQUIRES 6.8

@@ -19,6 +19,12 @@
 #include "library_menu.hpp"
 
 #include <QDesktopServices>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QMessageBox>
 #include <QUrl>
 
 #include "gui/media/media_dialog.hpp"
@@ -54,11 +60,28 @@ void LibraryMenu::open() const {
 }
 
 void LibraryMenu::remove() const {
-  // @TODO
+  const auto info = QFileInfo{m_path};
+  const auto message = tr("Move \"%1\" to trash?").arg(info.fileName());
+  if (QMessageBox::question(parentWidget(), tr("Delete"), message) != QMessageBox::Yes) return;
+
+  if (!QFile::moveToTrash(m_path)) {
+    QMessageBox::warning(parentWidget(), tr("Delete"),
+                         tr("Could not move \"%1\" to trash.").arg(info.fileName()));
+  }
 }
 
 void LibraryMenu::rename() const {
-  // @TODO
+  const auto info = QFileInfo{m_path};
+  bool ok = false;
+  const auto name = QInputDialog::getText(parentWidget(), tr("Rename"), tr("Name:"),
+                                          QLineEdit::Normal, info.fileName(), &ok);
+  if (!ok || name.trimmed().isEmpty() || name == info.fileName()) return;
+
+  QDir dir{info.absolutePath()};
+  if (!dir.rename(info.fileName(), name)) {
+    QMessageBox::warning(parentWidget(), tr("Rename"),
+                         tr("Could not rename \"%1\".").arg(info.fileName()));
+  }
 }
 
 void LibraryMenu::viewDetails() const {

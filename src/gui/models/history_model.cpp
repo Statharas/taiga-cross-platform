@@ -111,4 +111,9 @@ QVariant HistoryModel::headerData(int section, Qt::Orientation orientation, int 
   return QAbstractListModel::headerData(section, orientation, role);
 }
 
+void HistoryModel::reset() {
+  beginResetModel();
+  endResetModel();
+}
+
 }  // namespace gui

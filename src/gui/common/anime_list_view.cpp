@@ -75,8 +75,12 @@ void ListView::keyPressEvent(QKeyEvent* event) {
   if (event->key() == Qt::Key::Key_Return || event->key() == Qt::Key::Key_Enter) {
     const auto indexes = selectionModel()->selectedRows();
     for (const auto& index : indexes) {
-      m_base->showMediaDialog(index);
+      m_base->executeConfiguredDoubleClickAction(index);
     }
+    return;
+  }
+  if (event->key() == Qt::Key::Key_Delete) {
+    m_base->removeSelectedEntries();
     return;
   }
 
@@ -88,7 +92,7 @@ void ListView::mousePressEvent(QMouseEvent* event) {
     const QModelIndex index = indexAt(event->pos());
     if (index.isValid()) {
       setCurrentIndex(index);
-      m_base->playNextEpisode(index);
+      m_base->executeConfiguredMiddleClickAction(index);
       return;
     }
   }

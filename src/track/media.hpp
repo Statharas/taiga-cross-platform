@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <QApplication>
+#include <QCoreApplication>
 #include <QObject>
 #include <QTimer>
 #include <optional>

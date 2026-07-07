@@ -19,6 +19,7 @@
 #include "navigation_widget.hpp"
 
 #include <QMouseEvent>
+#include <functional>
 
 #include "gui/main/main_window.hpp"
 #include "gui/main/navigation_item_delegate.hpp"
@@ -30,9 +31,20 @@
 
 namespace gui {
 
+namespace {
+
+QIcon navigationIcon(const QString& icon) {
+  if (icon.startsWith("classic/")) {
+    return theme.getIcon(icon, "png", false);
+  }
+  return theme.getIcon(icon);
+}
+
+}  // namespace
+
 NavigationWidget::NavigationWidget(QWidget* parent) : QTreeWidget(parent) {
   setObjectName("navigation");
-  setFixedWidth(200);
+  setFixedWidth(140);
   setFrameShape(QFrame::Shape::NoFrame);
   setItemDelegate(new NavigationItemDelegate(this));
   setHeaderHidden(true);
@@ -61,34 +73,17 @@ void NavigationWidget::refresh() {
   setUpdatesEnabled(false);
   clear();
 
-  addItem("Home", "home", MainWindowPage::Home);
-  addItem("Search", "search", MainWindowPage::Search);
+  addItem("Now Playing", "classic/16px/film", MainWindowPage::Home);
+  auto listItem = addItem("Anime List", "classic/16px/document-attribute", MainWindowPage::List);
+  setItemData(listItem, NavigationItemDataRole::ListStatus,
+              static_cast<int>(anime::list::Status::Watching));
+  addItem("History", "classic/16px/clock", MainWindowPage::History);
+  addItem("Statistics", "classic/16px/chart", MainWindowPage::Statistics);
   addSeparator();
 
-  auto listItem = addItem("Anime List", "list_alt", MainWindowPage::List);
-  listItem->setExpanded(true);
-  setItemData(listItem, NavigationItemDataRole::HasChildren, true);
-
-  const auto statusCounts = []() {
-    QMap<anime::list::Status, int> statuses;
-    for (const auto& entry : anime::db.entries()) {
-      statuses[entry.status] += 1;
-    }
-    return statuses;
-  }();
-  for (const auto status : anime::list::kStatuses) {
-    auto item = addChildItem(listItem, formatListStatus(status));
-    setItemData(item, NavigationItemDataRole::PageIndex, static_cast<int>(MainWindowPage::List));
-    setItemData(item, NavigationItemDataRole::IsLastChild,
-                status == anime::list::Status::PlanToWatch);
-    setItemData(item, NavigationItemDataRole::ListStatus, static_cast<int>(status));
-    setItemData(item, NavigationItemDataRole::Counter, statusCounts[status]);
-  }
-
-  addItem("History", "history", MainWindowPage::History);
-  addSeparator();
-  addItem("Library", "folder", MainWindowPage::Library);
-  addItem("Torrents", "rss_feed", MainWindowPage::Torrents);
+  addItem("Search", "classic/16px/magnifier-left", MainWindowPage::Search);
+  addItem("Seasons", "classic/16px/calendar-month", MainWindowPage::Seasons);
+  addItem("Torrents", "classic/16px/feed", MainWindowPage::Torrents);
 
   setUpdatesEnabled(true);
 }
@@ -113,13 +108,13 @@ QTreeWidgetItem* NavigationWidget::addItem(const QString& text, const QString& i
 
   item->setFont(0, [item]() {
     auto font = item->font(0);
-    font.setPointSize(10);
-    font.setWeight(QFont::Weight::DemiBold);
+    font.setPointSize(9);
+    font.setWeight(QFont::Weight::Normal);
     return font;
   }());
 
-  item->setIcon(0, theme.getIcon(icon));
-  item->setSizeHint(0, QSize{0, 32});
+  item->setIcon(0, navigationIcon(icon));
+  item->setSizeHint(0, QSize{0, 24});
   item->setText(0, text);
 
   setItemData(item, NavigationItemDataRole::PageIndex, static_cast<int>(page));
@@ -131,7 +126,7 @@ QTreeWidgetItem* NavigationWidget::addChildItem(QTreeWidgetItem* parent, const Q
   auto item = new QTreeWidgetItem(parent);
 
   item->setIcon(0, theme.getIcon("empty"));  // for indentation
-  item->setSizeHint(0, QSize{0, 32});
+  item->setSizeHint(0, QSize{0, 24});
   item->setText(0, text);
 
   setItemData(item, NavigationItemDataRole::IsChild, true);
@@ -144,7 +139,7 @@ void NavigationWidget::addSeparator() {
 
   item->setDisabled(true);
   item->setFlags(item->flags() & ~Qt::ItemIsSelectable);
-  item->setSizeHint(0, QSize{0, 16});
+  item->setSizeHint(0, QSize{0, 14});
 
   setItemData(item, NavigationItemDataRole::IsSeparator, true);
 }
@@ -155,7 +150,8 @@ void NavigationWidget::setItemData(QTreeWidgetItem* item, NavigationItemDataRole
 }
 
 QTreeWidgetItem* NavigationWidget::findItemByPage(MainWindowPage page) const {
-  const auto find = [page](this auto const& find, QTreeWidgetItem* item) -> QTreeWidgetItem* {
+  const std::function<QTreeWidgetItem*(QTreeWidgetItem*)> find =
+      [page, &find](QTreeWidgetItem* item) -> QTreeWidgetItem* {
     const auto role = static_cast<int>(NavigationItemDataRole::PageIndex);
     const int data = item->data(0, role).toInt();
     if (data == static_cast<int>(page)) return item;

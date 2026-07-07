@@ -21,7 +21,6 @@
 #include <QNetworkReply>
 
 #include "base/string.hpp"
-#include "taiga/application.hpp"
 #include "taiga/config.h"
 
 namespace taiga {
@@ -33,7 +32,7 @@ NetworkAccessManager::NetworkAccessManager(QObject* parent) : QNetworkAccessMana
   // @TODO: Set proxy
 
   connect(this, &QNetworkAccessManager::finished, this, [](QNetworkReply* reply) {
-    if (!app()->isDebug()) return;
+    if (!qApp || !qApp->property("taiga.debug").toBool()) return;
     qDebug() << "Response status:"
              << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     qDebug() << "Response headers:";

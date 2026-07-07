@@ -45,6 +45,7 @@ private slots:
   void edit() const;
   void editEpisode() const;
   void editNotes() const;
+  void editScore(int score) const;
   void editStatus(const anime::list::Status status) const;
   void openFolder() const;
   void playEpisode(int number) const;
@@ -59,7 +60,6 @@ private slots:
   void searchWikipedia() const;
   void searchYouTube() const;
   void torrents() const;
-  void test() const;  // @TEMP
   void viewDetails() const;
 
 private:
@@ -74,6 +74,8 @@ private:
   bool isNowPlaying() const;
 
   const ListEntry* getEntry(int id) const;
+  ListEntry editableEntry(const Anime& item) const;
+  void updateEntries(const std::function<void(ListEntry&)>& update) const;
 
   const QList<Anime> m_items;
   const QMap<int, ListEntry> m_entries;

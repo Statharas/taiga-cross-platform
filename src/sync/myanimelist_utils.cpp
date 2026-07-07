@@ -28,7 +28,7 @@
 #include "sync/myanimelist.hpp"
 #include "sync/service.hpp"
 
-namespace sync::myanimelist {
+namespace taiga_sync::myanimelist {
 
 int fromListScore(int value) {
   return (value * 10) / anime::list::kScoreMax;
@@ -49,7 +49,7 @@ QString fromListStatus(const anime::list::Status value) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-QList<sync::Rating> ratingList() {
+QList<taiga_sync::Rating> ratingList() {
   constexpr int k = anime::list::kScoreMax / 10;
 
   // clang-format off
@@ -101,7 +101,7 @@ std::string authorizationCodeUrl(std::string& codeVerifier) {
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstvuwxyz"
         "0123456789-._~";
-    return unreserved[QRandomGenerator::global()->bounded(unreserved.size())];
+    return unreserved[QRandomGenerator::global()->bounded(static_cast<int>(unreserved.size()))];
   });
 
   QUrl url{"https://myanimelist.net/v1/oauth2/authorize"};
@@ -115,4 +115,4 @@ std::string authorizationCodeUrl(std::string& codeVerifier) {
   return url.toString().toStdString();
 }
 
-}  // namespace sync::myanimelist
+}  // namespace taiga_sync::myanimelist

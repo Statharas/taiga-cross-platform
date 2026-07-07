@@ -1,16 +1,13 @@
-include(QtSetup)
-
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(taiga)
-
-target_sources(taiga PRIVATE
+set(TAIGA_CORE_SOURCES
 	base/chrono.cpp
 	base/chrono.hpp
 	base/file.cpp
 	base/file.hpp
 	base/log.hpp
 	base/preprocessor.h
+	base/rss.cpp
 	base/rss.hpp
 	base/settings.cpp
 	base/settings.hpp
@@ -33,12 +30,12 @@ target_sources(taiga PRIVATE
 	media/anime_db.hpp
 	media/anime_history.cpp
 	media/anime_history.hpp
-	media/anime_list_export.cpp
-	media/anime_list_export.hpp
 	media/anime_list_utils.cpp
 	media/anime_list_utils.hpp
 	media/anime_list.hpp
 	media/anime_season.cpp
+	media/anime_season_db.cpp
+	media/anime_season_db.hpp
 	media/anime_season.hpp
 	media/anime_utils.cpp
 	media/anime_utils.hpp
@@ -56,8 +53,11 @@ target_sources(taiga PRIVATE
 	sync/kitsu_parsers.hpp
 	sync/kitsu_ratings.cpp
 	sync/kitsu_ratings.hpp
+	sync/kitsu.cpp
+	sync/kitsu.hpp
 	sync/kitsu_utils.cpp
 	sync/kitsu_utils.hpp
+	sync/myanimelist.cpp
 	sync/myanimelist.hpp
 	sync/myanimelist_parsers.cpp
 	sync/myanimelist_parsers.hpp
@@ -68,8 +68,6 @@ target_sources(taiga PRIVATE
 
 	taiga/accounts.cpp
 	taiga/accounts.hpp
-	taiga/application.cpp
-	taiga/application.hpp
 	taiga/config.h
 	taiga/network.cpp
 	taiga/network.hpp
@@ -77,8 +75,6 @@ target_sources(taiga PRIVATE
 	taiga/orange.hpp
 	taiga/path.cpp
 	taiga/path.hpp
-	taiga/session.cpp
-	taiga/session.hpp
 	taiga/settings.cpp
 	taiga/settings.hpp
 	taiga/version.cpp
@@ -98,37 +94,71 @@ target_sources(taiga PRIVATE
 	track/recognition_normalize.hpp
 	track/scanner.cpp
 	track/scanner.hpp
-
-	main.cpp
+	track/torrent_feed.cpp
+	track/torrent_feed.hpp
 )
 
-target_link_libraries(taiga PRIVATE
+add_library(taiga-core STATIC)
+
+target_sources(taiga-core PRIVATE ${TAIGA_CORE_SOURCES})
+
+target_link_libraries(taiga-core PUBLIC
 	Qt6::Core
 	Qt6::Gui
 	Qt6::Network
 	Qt6::Sql
-	Qt6::Widgets
 	taiga-config
 	taiga-deps
-	taiga-gui
-	taiga-resources
 )
 
-if (TAIGA_PORTABLE)
-	target_compile_definitions(taiga PRIVATE TAIGA_PORTABLE)
+if (TARGET Qt6::DBus)
+	target_link_libraries(taiga-core PUBLIC Qt6::DBus)
 endif()
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	set_target_properties(taiga PROPERTIES OUTPUT_NAME Taiga)
-	set_target_properties(taiga PROPERTIES WIN32_EXECUTABLE ON)
+target_include_directories(taiga-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+if (TAIGA_PORTABLE)
+	target_compile_definitions(taiga-core PUBLIC TAIGA_PORTABLE)
+endif()
+
+if (TAIGA_BUILD_QT_APP)
+	add_executable(taiga)
+
+	target_sources(taiga PRIVATE
+		media/anime_list_export.cpp
+		media/anime_list_export.hpp
+		taiga/application.cpp
+		taiga/application.hpp
+		taiga/session.cpp
+		taiga/session.hpp
+		main.cpp
+	)
+
+	target_link_libraries(taiga PRIVATE
+		taiga-core
+		taiga-gui
+		taiga-resources
+	)
+
+	if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+		set_target_properties(taiga PROPERTIES OUTPUT_NAME Taiga)
+		set_target_properties(taiga PROPERTIES WIN32_EXECUTABLE ON)
+	endif()
 endif()
 
 add_subdirectory(gui)
 add_subdirectory(resources)
 
-qt_add_translations(taiga
-	SOURCE_TARGETS taiga-gui
-	TS_FILE_BASE taiga
-	TS_FILE_DIR resources/translations
-	LUPDATE_OPTIONS -no-obsolete -locations none
-)
+if (TAIGA_BUILD_TESTS)
+	enable_testing()
+	add_subdirectory(tests)
+endif()
+
+if (TAIGA_BUILD_QT_APP)
+	qt_add_translations(taiga
+		SOURCE_TARGETS taiga-gui
+		TS_FILE_BASE taiga
+		TS_FILE_DIR resources/translations
+		LUPDATE_OPTIONS -no-obsolete -locations none
+	)
+endif()

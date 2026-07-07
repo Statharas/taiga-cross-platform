@@ -21,11 +21,16 @@
 #include <QDesktopServices>
 #include <QHeaderView>
 #include <QLayout>
+#include <QMenu>
+#include <QMessageBox>
 #include <QUrl>
 
 #include "gui/main/main_window.hpp"
+#include "gui/media/media_dialog.hpp"
 #include "gui/models/history_model.hpp"
 #include "gui/utils/theme.hpp"
+#include "media/anime_db.hpp"
+#include "media/anime_history.hpp"
 #include "taiga/settings.hpp"
 
 namespace gui {
@@ -62,7 +67,31 @@ void HistoryWidget::showContextMenu() const {
 
   if (!index.isValid()) return;
 
-  // @TODO
+  const auto row = index.row();
+  if (row < 0 || row >= anime::history.items().size()) return;
+
+  const auto historyItem = anime::history.items().at(row);
+  auto* menu = new QMenu(m_view);
+  menu->setAttribute(Qt::WA_DeleteOnClose);
+
+  if (const auto item = anime::db.item(historyItem.anime_id)) {
+    menu->addAction(theme.getIcon("info"), tr("Details"), this, [this, item]() {
+      const auto entry = anime::db.entry(item->id);
+      MediaDialog::show(parentWidget(), MediaDialogPage::Details, *item,
+                        entry ? std::optional<ListEntry>{*entry} : std::nullopt);
+    });
+  }
+
+  menu->addAction(theme.getIcon("delete"), tr("Clear history"), this, [this]() {
+    if (QMessageBox::question(parentWidget(), tr("Clear history"),
+                              tr("Clear all history items?")) != QMessageBox::Yes) {
+      return;
+    }
+    anime::history.clear();
+    m_model->reset();
+  });
+
+  menu->popup(QCursor::pos());
 }
 
 }  // namespace gui

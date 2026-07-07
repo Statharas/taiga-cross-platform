@@ -22,5 +22,8 @@ namespace track {
 
 bool playEpisode(int animeId, int number);
 bool playNextEpisode(int animeId);
+bool playNextEpisodeOfLastWatchedAnime();
+bool playRandomAnime();
+bool playRandomEpisode(int animeId);
 
 }  // namespace track

@@ -64,7 +64,10 @@ int identify(Episode& episode) {
   std::vector<Cache::Data::Match> matches;
 
   if (const auto data = cache()->find(normalizedTitle)) {
-    matches.append_range(data->matches | std::views::values | std::ranges::to<std::vector>());
+    matches.reserve(data->matches.size());
+    for (const auto& match : data->matches | std::views::values) {
+      matches.emplace_back(match);
+    }
   }
 
   std::ranges::sort(matches, std::ranges::greater{}, &Cache::Data::Match::weight);

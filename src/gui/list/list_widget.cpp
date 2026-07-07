@@ -23,6 +23,7 @@
 #include <QFileDialog>
 #include <QListView>
 #include <QMenu>
+#include <QTabBar>
 #include <QToolBar>
 #include <QToolButton>
 #include <format>
@@ -34,7 +35,9 @@
 #include "gui/main/navigation_widget.hpp"
 #include "gui/models/anime_list_model.hpp"
 #include "gui/models/anime_list_proxy_model.hpp"
+#include "gui/utils/format.hpp"
 #include "gui/utils/theme.hpp"
+#include "media/anime_db.hpp"
 #include "media/anime_list_export.hpp"
 #include "taiga/session.hpp"
 
@@ -49,8 +52,9 @@ ListWidget::ListWidget(QWidget* parent)
       m_moreMenu(new QMenu(this)) {
   m_proxyModel->sort(taiga::session.animeListSortColumn(), taiga::session.animeListSortOrder());
 
+  initStatusTabs();
   initToolbar();
-  setViewMode(taiga::session.animeListViewMode());
+  setViewMode(ListViewMode::List);
 
   connect(m_sortMenu, &QMenu::aboutToShow, this, &ListWidget::initSortMenu);
   connect(m_viewMenu, &QMenu::aboutToShow, this, &ListWidget::initViewMenu);
@@ -58,11 +62,25 @@ ListWidget::ListWidget(QWidget* parent)
 
   connect(mainWindow()->navigation(), &NavigationWidget::currentListStatusChanged, this,
           [this](anime::list::Status status) {
+            if (m_statusTabs) {
+              for (int i = 0; i < m_statusTabs->count(); ++i) {
+                if (m_statusTabs->tabData(i).toInt() == static_cast<int>(status)) {
+                  m_statusTabs->setCurrentIndex(i);
+                  break;
+                }
+              }
+            }
             m_proxyModel->setListStatusFilter({
                 .status = static_cast<int>(status),
                 .anyStatus = !static_cast<int>(status),
             });
           });
+
+  m_proxyModel->setListStatusFilter({
+      .status = static_cast<int>(anime::list::Status::Watching),
+      .anyStatus = false,
+  });
+  refreshStatusTabs();
 }
 
 ListViewMode ListWidget::viewMode() const {
@@ -105,6 +123,8 @@ void ListWidget::saveState() {
 }
 
 void ListWidget::initToolbar() {
+  return;
+
   const auto actionSort = new QAction(theme.getIcon("sort"), tr("Sort"), this);
   const auto actionView = new QAction(theme.getIcon("grid_view"), tr("View"), this);
   const auto actionMore = new QAction(theme.getIcon("more_horiz"), tr("More"), this);
@@ -124,6 +144,40 @@ void ListWidget::initToolbar() {
   const auto moreButton = static_cast<QToolButton*>(m_toolbar->widgetForAction(actionMore));
   moreButton->setPopupMode(QToolButton::InstantPopup);
   moreButton->setMenu(m_moreMenu);
+}
+
+void ListWidget::initStatusTabs() {
+  m_statusTabs = new QTabBar(this);
+  m_statusTabs->setExpanding(false);
+  m_statusTabs->setDocumentMode(true);
+  m_statusTabs->setDrawBase(true);
+
+  const auto statusCounts = []() {
+    QMap<anime::list::Status, int> statuses;
+    for (const auto& entry : anime::db.entries()) {
+      statuses[entry.status] += 1;
+    }
+    return statuses;
+  }();
+
+  for (const auto status : anime::list::kStatuses) {
+    const auto count = statusCounts[status];
+    const auto label = status == anime::list::Status::Watching
+                           ? tr("Currently watching (%1)").arg(count)
+                           : tr("%1 (%2)").arg(formatListStatus(status)).arg(count);
+    m_statusTabs->addTab(label);
+    m_statusTabs->setTabData(m_statusTabs->count() - 1, static_cast<int>(status));
+  }
+
+  m_toolbarLayout->insertWidget(0, m_statusTabs);
+  connect(m_statusTabs, &QTabBar::currentChanged, this, [this](int index) {
+    if (index < 0) return;
+    const auto status = m_statusTabs->tabData(index).toInt();
+    m_proxyModel->setListStatusFilter({
+        .status = status,
+        .anyStatus = false,
+    });
+  });
 }
 
 void ListWidget::initSortMenu() {
@@ -202,10 +256,27 @@ void ListWidget::initMoreMenu() {
   };
 
   m_moreMenu->addAction(tr("Export as Markdown..."), this,
-                        [this]() { export_as(this, "md", &anime::list::exportAsMarkdown); });
+                        [this, export_as]() { export_as(this, "md", &anime::list::exportAsMarkdown); });
 
   m_moreMenu->addAction(tr("Export as XML..."), this,
-                        [this]() { export_as(this, "xml", &anime::list::exportAsXml); });
+                        [this, export_as]() { export_as(this, "xml", &anime::list::exportAsXml); });
+}
+
+void ListWidget::refreshStatusTabs() {
+  if (!m_statusTabs) return;
+
+  QMap<anime::list::Status, int> statusCounts;
+  for (const auto& entry : anime::db.entries()) {
+    statusCounts[entry.status] += 1;
+  }
+
+  for (int i = 0; i < m_statusTabs->count(); ++i) {
+    const auto status = static_cast<anime::list::Status>(m_statusTabs->tabData(i).toInt());
+    const auto label = status == anime::list::Status::Watching
+                           ? tr("Currently watching (%1)").arg(statusCounts[status])
+                           : tr("%1 (%2)").arg(formatListStatus(status)).arg(statusCounts[status]);
+    m_statusTabs->setTabText(i, label);
+  }
 }
 
 }  // namespace gui

@@ -20,8 +20,8 @@
 
 #include <string>
 
-namespace sync::kitsu {
+namespace taiga_sync::kitsu {
 
 std::string animePageUrl(const int id);
 
-}  // namespace sync::kitsu
+}  // namespace taiga_sync::kitsu

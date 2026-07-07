@@ -23,6 +23,8 @@
 #include "gui/common/anime_list_view_base.hpp"
 #include "gui/common/page_widget.hpp"
 
+class QTabBar;
+
 namespace gui {
 
 class AnimeListModel;
@@ -46,8 +48,10 @@ public:
 private:
   void initToolbar();
   void initSortMenu();
+  void initStatusTabs();
   void initViewMenu();
   void initMoreMenu();
+  void refreshStatusTabs();
 
   AnimeListModel* m_model = nullptr;
   AnimeListProxyModel* m_proxyModel = nullptr;
@@ -57,6 +61,7 @@ private:
   QMenu* m_sortMenu = nullptr;
   QMenu* m_viewMenu = nullptr;
   QMenu* m_moreMenu = nullptr;
+  QTabBar* m_statusTabs = nullptr;
 };
 
 }  // namespace gui

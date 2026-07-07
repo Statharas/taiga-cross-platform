@@ -34,7 +34,7 @@ inline void log(const monolog::Level level, const monolog::Source& source,
 }  // namespace base
 
 #define TAIGA_LOG(level, text, ...) \
-  base::log(level, monolog::Source{__FILE__, __FUNCTION__, __LINE__}, text, __VA_ARGS__)
+  base::log(level, monolog::Source{__FILE__, __FUNCTION__, __LINE__}, text __VA_OPT__(, ) __VA_ARGS__)
 
 #define LOGD(text, ...) TAIGA_LOG(monolog::Level::Debug, text, __VA_ARGS__)
 #define LOGI(text, ...) TAIGA_LOG(monolog::Level::Informational, text, __VA_ARGS__)

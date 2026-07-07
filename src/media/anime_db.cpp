@@ -101,6 +101,17 @@ void Database::updateEntry(const ListEntry& entry) {
   emit entryUpdated(entry.anime_id);
 }
 
+void Database::clearEntries() {
+  if (!db_.open()) return;
+
+  QSqlQuery q{db_};
+  q.exec("DELETE FROM anime_list");
+  db_.close();
+
+  entries_.clear();
+  emit entriesCleared();
+}
+
 QString Database::fileName() const {
   return u"%1/media.sqlite"_s.arg(QString::fromStdString(taiga::get_data_path()));
 }
@@ -211,7 +222,7 @@ void Database::bindItemToQuery(const Anime& item, QSqlQuery& q) const {
 }
 
 void Database::bindEntryToQuery(const ListEntry& entry, QSqlQuery& q) const {
-  q.bindValue(":id", entry.id);
+  q.bindValue(":id", static_cast<qlonglong>(entry.id));
   q.bindValue(":media_id", entry.anime_id);
   q.bindValue(":progress", entry.watched_episodes);
   q.bindValue(":date_start", QString::fromStdString(entry.date_started.to_string()));

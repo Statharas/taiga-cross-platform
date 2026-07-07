@@ -21,6 +21,7 @@
 #include <QMap>
 #include <QObject>
 #include <QPixmap>
+#include <QSet>
 #include <QString>
 
 namespace gui {
@@ -43,6 +44,7 @@ private:
   QString fileName(const int id) const;
 
   QMap<int, QPixmap> m_pixmaps;
+  QSet<int> m_pending;
 };
 
 inline ImageProvider imageProvider;

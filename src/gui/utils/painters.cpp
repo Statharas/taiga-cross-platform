@@ -21,6 +21,7 @@
 #include <QGuiApplication>
 #include <QPainter>
 #include <QProxyStyle>
+#include <QStyleOption>
 
 #include "base/string.hpp"
 #include "gui/models/anime_list_model.hpp"
@@ -51,7 +52,6 @@ void paintProgressBar(QPainter* painter, const QStyleOption& option, const Anime
   const int episodes = anime->episode_count;
   const int watched = std::clamp(entry->watched_episodes, 0,
                                  episodes > 0 ? episodes : std::numeric_limits<int>::max());
-  const auto text = u"%1/%2"_s.arg(watched).arg(formatNumber(episodes, "?"));
 
   QStyleOptionProgressBar styleOption{};
   styleOption.state = option.state | QStyle::State_Horizontal;
@@ -66,12 +66,34 @@ void paintProgressBar(QPainter* painter, const QStyleOption& option, const Anime
   styleOption.maximum = 100;
   styleOption.minimum = 0;
   styleOption.progress = static_cast<int>(anime::list::getProgressRatio(anime, entry) * 100);
-  styleOption.text = text;
+  styleOption.text = {};
   styleOption.textAlignment = Qt::AlignCenter;
-  styleOption.textVisible = true;
+  styleOption.textVisible = false;
 
   static const auto proxyStyle{new QProxyStyle{"fusion"}};
   proxyStyle->drawControl(QStyle::CE_ProgressBar, &styleOption, painter);
+
+  const auto baseText = option.palette.color(QPalette::ColorRole::Text);
+  const auto mutedText =
+      option.palette.color(QPalette::ColorGroup::Disabled, QPalette::ColorRole::Text);
+  const auto slashWidth = option.fontMetrics.horizontalAdvance("/");
+  const auto gap = 4;
+  const auto center = option.rect.center().x();
+
+  auto watchedRect = option.rect;
+  watchedRect.setRight(center - gap);
+  auto totalRect = option.rect;
+  totalRect.setLeft(center + slashWidth + gap);
+
+  painter->setPen(mutedText);
+  painter->drawText(option.rect, Qt::AlignCenter, "/");
+
+  painter->setPen(watched > 0 ? baseText : mutedText);
+  painter->drawText(watchedRect, Qt::AlignRight | Qt::AlignVCenter,
+                    formatNumber(watched, "0"));
+
+  painter->setPen(episodes > 0 ? baseText : mutedText);
+  painter->drawText(totalRect, Qt::AlignLeft | Qt::AlignVCenter, formatNumber(episodes, "?"));
 }
 
 }  // namespace gui

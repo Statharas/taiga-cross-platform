@@ -32,7 +32,7 @@
 #include "media/anime_list.hpp"
 #include "media/anime_season.hpp"
 
-namespace sync::anilist {
+namespace taiga_sync::anilist {
 
 FuzzyDate parseFuzzyDate(const QJsonValue& json) {
   return FuzzyDate{
@@ -99,7 +99,8 @@ std::optional<Anime> parseMedia(const QJsonValue& json) {
   Anime item{
       .id = id,
       .last_modified = QDateTime::currentSecsSinceEpoch(),
-      .episode_count = json["episodes"].toInt(),
+      .episode_count = json["episodes"].isDouble() ? json["episodes"].toInt()
+                                                    : anime::kUnknownEpisodeCount,
       .episode_length = json["duration"].toInt(),
       .status = parseStatus(json["status"].toString()),
       .type = parseType(json["format"].toString()),
@@ -159,4 +160,29 @@ std::optional<Anime> parseMedia(const QJsonValue& json) {
   return item;
 }
 
-}  // namespace sync::anilist
+std::optional<ListEntry> parseMediaListEntry(const QJsonValue& json) {
+  const auto object = json.toObject();
+  const auto media = object["media"].toObject();
+  const int animeId = media["id"].toInt();
+  const qint64 entryId = object["id"].toInteger();
+
+  if (!animeId || !entryId) return std::nullopt;
+
+  const auto status = object["status"].toString();
+  return ListEntry{
+      .id = entryId,
+      .anime_id = animeId,
+      .watched_episodes = object["progress"].toInt(),
+      .score = object["score"].toInt(),
+      .status = status == "REPEATING" ? anime::list::Status::Watching : parseListStatus(status),
+      .is_private = object["private"].toBool(),
+      .rewatched_times = object["repeat"].toInt(),
+      .rewatching = status == "REPEATING",
+      .date_started = parseFuzzyDate(object["startedAt"]),
+      .date_completed = parseFuzzyDate(object["completedAt"]),
+      .last_updated = static_cast<std::time_t>(object["updatedAt"].toInteger()),
+      .notes = object["notes"].toString().toStdString(),
+  };
+}
+
+}  // namespace taiga_sync::anilist

@@ -32,16 +32,22 @@ class HistoryWidget;
 class LibraryWidget;
 class ListWidget;
 class NavigationWidget;
+class NowPlayingPageWidget;
 class NowPlayingWidget;
 class SearchWidget;
+class SeasonsWidget;
+class StatisticsWidget;
 class TrayIcon;
+class TorrentsWidget;
 
 enum class MainWindowPage {
   Home,
   Search,
   List,
   History,
+  Statistics,
   Library,
+  Seasons,
   Torrents,
   Profile,
 };
@@ -70,6 +76,11 @@ public slots:
 private slots:
   void about();
   void donate() const;
+  void exportListAsMarkdown();
+  void exportListAsXml();
+  void playNextEpisode();
+  void playRandomAnime();
+  void scanAvailableEpisodes();
   void setPage(MainWindowPage page);
   void support() const;
   void profile();
@@ -86,6 +97,7 @@ private:
   void initStatusbar();
   void initToolbar();
   void initTrayIcon();
+  void exportList(const QString& extension, bool (*exportFunction)(const std::string&));
 
   Ui::MainWindow* ui_ = nullptr;
 
@@ -94,8 +106,12 @@ private:
   ListWidget* m_listWidget = nullptr;
   NavigationWidget* m_navigationWidget = nullptr;
   NowPlayingWidget* m_nowPlayingWidget = nullptr;
+  NowPlayingPageWidget* m_nowPlayingPageWidget = nullptr;
   QLineEdit* m_searchBox = nullptr;
   SearchWidget* m_searchWidget = nullptr;
+  SeasonsWidget* m_seasonsWidget = nullptr;
+  StatisticsWidget* m_statisticsWidget = nullptr;
+  TorrentsWidget* m_torrentsWidget = nullptr;
   TrayIcon* m_trayIcon = nullptr;
 };
 

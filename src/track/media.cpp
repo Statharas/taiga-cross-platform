@@ -18,11 +18,34 @@
 
 #include "media.hpp"
 
+#include <QFileInfo>
+
 #include "base/file.hpp"
 #include "media/anime_db.hpp"
 #include "taiga/settings.hpp"
 #include "track/episode.hpp"
 #include "track/recognition.hpp"
+
+namespace {
+
+std::optional<track::Episode> episodeFromMediaInfo(const anisthesia::MediaInfo& mediaInfo) {
+  auto episode = [&mediaInfo]() {
+    if (mediaInfo.type == anisthesia::MediaInfoType::File) {
+      const QFileInfo fileInfo{QString::fromStdString(mediaInfo.value)};
+      return track::recognition::parseFileInfo(fileInfo);
+    }
+
+    return track::recognition::parse(mediaInfo.value);
+  }();
+
+  const auto animeId = track::recognition::identify(episode);
+  if (!animeId) return std::nullopt;
+
+  episode.setAnimeId(animeId);
+  return episode;
+}
+
+}  // namespace
 
 namespace track::media {
 
@@ -54,16 +77,13 @@ bool Detection::init() {
     return false;
   }
 
-#ifdef Q_OS_WINDOWS
   const auto interval = taiga::settings.mediaDetectionInterval();
   pollTimer_->start(interval);
-#endif
 
   return true;
 }
 
 void Detection::poll() {
-#ifdef Q_OS_WINDOWS
   if (players_.empty()) return;
 
   // @TODO: Enable web browser detection
@@ -78,8 +98,8 @@ void Detection::poll() {
     return true;  // Accept all media
   };
 
-  std::vector<anisthesia::win::Result> results;
-  if (!anisthesia::win::GetResults(players, media_proc, results)) {
+  std::vector<anisthesia::Result> results;
+  if (!anisthesia::GetResults(players, media_proc, results)) {
     currentPlayer_.reset();
     currentMedia_.reset();
     if (currentEpisode_) {
@@ -92,24 +112,13 @@ void Detection::poll() {
   currentPlayer_ = results.front().player;
   currentMedia_ = results.front().media.front();
 
-  const auto mediaInfo = currentMedia_->information.front();
-  auto episode = [&mediaInfo]() {
-    if (mediaInfo.type == anisthesia::MediaInfoType::File) {
-      const QFileInfo fileInfo{QString::fromStdString(mediaInfo.value)};
-      return track::recognition::parseFileInfo(fileInfo);
-    } else {
-      return track::recognition::parse(mediaInfo.value);
-    }
-  }();
+  const auto episode = episodeFromMediaInfo(currentMedia_->information.front());
+  if (!episode) return;
 
-  const auto animeId = track::recognition::identify(episode);
-  episode.setAnimeId(animeId);
-
-  if (!currentEpisode_ || currentEpisode_->animeId() != animeId) {
-    currentEpisode_ = episode;
+  if (!currentEpisode_ || currentEpisode_->animeId() != episode->animeId()) {
+    currentEpisode_ = *episode;
     emit currentEpisodeChanged(episode);
   }
-#endif
 }
 
 }  // namespace track::media

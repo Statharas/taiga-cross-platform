@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+      - cross-platform-anisthesia-integration
+
+jobs:
+  build-test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2022
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Prepare submodule URLs
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+      - name: Check out submodules
+        run: git submodule update --init --recursive
+
+      - name: Apply third-party portability patches
+        run: bash scripts/apply-third-party-portability-patches.sh
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev
+
+      - name: Configure
+        run: cmake -S . -B build -DTAIGA_BUILD_QT_APP=ON -DTAIGA_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --config Debug --target taiga taiga-core-tests taiga-settings-dialog-tests taiga-main-ui-parity-tests --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Debug --output-on-failure

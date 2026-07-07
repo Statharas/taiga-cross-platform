@@ -106,11 +106,11 @@ void NowPlayingWidget::refresh() {
   }
   if (m_episode->contains(anitomy::ElementKind::EpisodeTitle)) {
     const auto episodeTitle = m_episode->element(anitomy::ElementKind::EpisodeTitle);
-    lines += u"<b>Episode title:</b> %1"_s.arg(episodeTitle);
+    lines += u"<b>Episode title:</b> %1"_s.arg(QString::fromStdString(episodeTitle));
   }
   if (m_episode->contains(anitomy::ElementKind::ReleaseGroup)) {
     const auto releaseGroup = m_episode->element(anitomy::ElementKind::ReleaseGroup);
-    lines += u"<b>Group:</b> %1"_s.arg(releaseGroup);
+    lines += u"<b>Group:</b> %1"_s.arg(QString::fromStdString(releaseGroup));
   }
   m_iconLabel->setToolTip(lines.join("<br>"));
 
@@ -124,7 +124,7 @@ void NowPlayingWidget::refresh() {
 
   m_mainLabel->setText(u"Watching <a href=\"#\" style=\"%3\">%1</a> – Episode %2"_s
                            .arg(QString::fromStdString(title))
-                           .arg(u"%1/%2"_s.arg(episodeNumber).arg(episodeCount))
+                           .arg(u"%1/%2"_s.arg(QString::fromStdString(episodeNumber)).arg(episodeCount))
                            .arg("font-weight: 600; text-decoration: none;"));
 
   m_timerLabel->setText("List update in <b style=\"font-weight: 600;\">00:00</b>");

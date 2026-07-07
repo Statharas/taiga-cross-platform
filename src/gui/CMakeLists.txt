@@ -43,6 +43,8 @@ target_sources(taiga-gui PRIVATE
 	main/navigation_item_delegate.hpp
 	main/navigation_widget.cpp
 	main/navigation_widget.hpp
+	main/now_playing_page_widget.cpp
+	main/now_playing_page_widget.hpp
 	main/now_playing_widget.cpp
 	main/now_playing_widget.hpp
 
@@ -63,8 +65,17 @@ target_sources(taiga-gui PRIVATE
 	search/search_widget.cpp
 	search/search_widget.hpp
 
+	seasons/seasons_widget.cpp
+	seasons/seasons_widget.hpp
+
 	settings/settings_dialog.cpp
 	settings/settings_dialog.hpp
+
+	statistics/statistics_widget.cpp
+	statistics/statistics_widget.hpp
+
+	torrents/torrents_widget.cpp
+	torrents/torrents_widget.hpp
 
 	utils/format.cpp
 	utils/format.hpp
@@ -90,6 +101,7 @@ target_link_libraries(taiga-gui
 	Qt6::Sql
 	Qt6::Widgets
 	taiga-config
+	taiga-core
 	taiga-deps
 )
 
