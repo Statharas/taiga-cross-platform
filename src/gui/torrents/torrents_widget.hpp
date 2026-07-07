@@ -16,6 +16,7 @@
 
 class QLabel;
 class QLineEdit;
+class QPoint;
 class QTableWidget;
 
 namespace gui {
@@ -34,6 +35,7 @@ private:
   void fetch();
   void openSelected() const;
   void populate();
+  void showContextMenu(const QPoint& position);
   void showSettings();
   void setBusy(bool busy);
 

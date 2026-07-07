@@ -38,6 +38,7 @@ class AnimeListModel final : public QAbstractListModel {
 
 public:
   enum Column {
+    COLUMN_STATUS,
     COLUMN_TITLE,
     COLUMN_PROGRESS,
     COLUMN_DURATION,

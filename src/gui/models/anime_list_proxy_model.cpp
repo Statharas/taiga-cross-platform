@@ -162,6 +162,9 @@ bool AnimeListProxyModel::lessThan(const QModelIndex& lhs, const QModelIndex& rh
   const auto rhs_entry = getListEntry(rhs);
 
   switch (lhs.column()) {
+    case AnimeListModel::COLUMN_STATUS:
+      return lhs_anime->status < rhs_anime->status;
+
     case AnimeListModel::COLUMN_TITLE:
       return compareStrings(lhs_anime->titles.romaji, rhs_anime->titles.romaji,
                             Qt::CaseInsensitive) < 0;

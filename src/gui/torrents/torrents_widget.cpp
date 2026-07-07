@@ -10,19 +10,25 @@
 
 #include "torrents_widget.hpp"
 
+#include <QAction>
 #include <QDesktopServices>
 #include <QHeaderView>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPushButton>
+#include <QSizePolicy>
 #include <QTableWidget>
+#include <QToolBar>
 #include <QUrl>
 #include <QVBoxLayout>
 
 #include "base/string.hpp"
 #include "gui/settings/settings_dialog.hpp"
+#include "media/anime_db.hpp"
 #include "taiga/network.hpp"
 #include "taiga/settings.hpp"
 
@@ -46,30 +52,61 @@ QString formatSize(const QString& bytesText) {
                    : QString("%1 %2").arg(size, 0, 'f', 1).arg(units[unit]);
 }
 
+QString statusIconPath(anime::Status status) {
+  switch (status) {
+    case anime::Status::Airing:
+      return ":/icons/classic/16px/square-small-green.png";
+    case anime::Status::FinishedAiring:
+      return ":/icons/classic/16px/square-small-blue.png";
+    case anime::Status::NotYetAired:
+      return ":/icons/classic/16px/square-small-red.png";
+    case anime::Status::Unknown:
+      break;
+  }
+  return ":/icons/classic/16px/square-small-gray.png";
+}
+
+QIcon torrentIcon(const track::torrent::Item& item) {
+  for (const auto& anime : anime::db.items()) {
+    const auto title = QString::fromStdString(anime.titles.romaji);
+    if (!title.isEmpty() && item.title.contains(title, Qt::CaseInsensitive)) {
+      return QIcon(statusIconPath(anime.status));
+    }
+  }
+  return QIcon(statusIconPath(anime::Status::Unknown));
+}
+
 }  // namespace
 
 TorrentsWidget::TorrentsWidget(QWidget* parent) : QWidget(parent) {
   auto* layout = new QVBoxLayout(this);
-  layout->setContentsMargins(16, 16, 16, 16);
-  layout->setSpacing(8);
+  layout->setContentsMargins(8, 4, 8, 4);
+  layout->setSpacing(4);
 
-  auto* toolbar = new QWidget(this);
-  auto* toolbarLayout = new QHBoxLayout(toolbar);
-  toolbarLayout->setContentsMargins(0, 0, 0, 0);
-  auto* refreshButton = new QPushButton(tr("Check new torrents"), toolbar);
-  auto* openButton = new QPushButton(tr("Download marked torrents"), toolbar);
-  auto* archiveButton = new QPushButton(tr("Discard marked"), toolbar);
-  auto* discardAllButton = new QPushButton(tr("Discard all"), toolbar);
-  auto* settingsButton = new QPushButton(tr("Settings"), toolbar);
+  auto* toolbar = new QToolBar(this);
+  toolbar->setIconSize(QSize{16, 16});
+  toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  toolbar->setMovable(false);
+  toolbar->setFloatable(false);
+  auto* refreshAction =
+      toolbar->addAction(QIcon(":/icons/classic/16px/arrow-circle-315.png"),
+                         tr("Check new torrents"));
+  toolbar->addSeparator();
+  auto* openAction =
+      toolbar->addAction(QIcon(":/icons/classic/16px/navigation-270-button.png"),
+                         tr("Download marked torrents"));
+  auto* discardAllAction =
+      toolbar->addAction(QIcon(":/icons/classic/16px/cross.png"), tr("Discard all"));
+  toolbar->addSeparator();
+  auto* settingsAction =
+      toolbar->addAction(QIcon(":/icons/classic/16px/gear.png"), tr("Settings"));
+  auto* spacer = new QWidget(toolbar);
+  spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  toolbar->addWidget(spacer);
   filterEdit_ = new QLineEdit(toolbar);
-  filterEdit_->setPlaceholderText(tr("Filter torrents"));
-  toolbarLayout->addWidget(refreshButton);
-  toolbarLayout->addWidget(openButton);
-  toolbarLayout->addWidget(archiveButton);
-  toolbarLayout->addWidget(discardAllButton);
-  toolbarLayout->addWidget(settingsButton);
-  toolbarLayout->addStretch();
-  toolbarLayout->addWidget(filterEdit_);
+  filterEdit_->setPlaceholderText(tr("Search for torrents"));
+  filterEdit_->setMaximumWidth(240);
+  toolbar->addWidget(filterEdit_);
   layout->addWidget(toolbar);
 
   table_ = new QTableWidget(this);
@@ -80,6 +117,7 @@ TorrentsWidget::TorrentsWidget(QWidget* parent) : QWidget(parent) {
   table_->setSelectionBehavior(QAbstractItemView::SelectRows);
   table_->setSelectionMode(QAbstractItemView::ExtendedSelection);
   table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+  table_->setContextMenuPolicy(Qt::CustomContextMenu);
   table_->setSortingEnabled(true);
   table_->horizontalHeader()->setStretchLastSection(false);
   table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
@@ -98,13 +136,13 @@ TorrentsWidget::TorrentsWidget(QWidget* parent) : QWidget(parent) {
   statusLabel_ = new QLabel(this);
   layout->addWidget(statusLabel_);
 
-  connect(refreshButton, &QPushButton::clicked, this, &TorrentsWidget::fetch);
-  connect(openButton, &QPushButton::clicked, this, &TorrentsWidget::openSelected);
-  connect(archiveButton, &QPushButton::clicked, this, &TorrentsWidget::archiveSelected);
-  connect(discardAllButton, &QPushButton::clicked, this, &TorrentsWidget::archiveVisible);
-  connect(settingsButton, &QPushButton::clicked, this, &TorrentsWidget::showSettings);
+  connect(refreshAction, &QAction::triggered, this, &TorrentsWidget::fetch);
+  connect(openAction, &QAction::triggered, this, &TorrentsWidget::openSelected);
+  connect(discardAllAction, &QAction::triggered, this, &TorrentsWidget::archiveVisible);
+  connect(settingsAction, &QAction::triggered, this, &TorrentsWidget::showSettings);
   connect(filterEdit_, &QLineEdit::textChanged, this, &TorrentsWidget::populate);
   connect(table_, &QTableWidget::itemDoubleClicked, this, [this]() { openSelected(); });
+  connect(table_, &QWidget::customContextMenuRequested, this, &TorrentsWidget::showContextMenu);
 
   populate();
 }
@@ -187,6 +225,7 @@ void TorrentsWidget::populate() {
     const auto row = table_->rowCount();
     table_->insertRow(row);
     auto* title = new QTableWidgetItem(item.title);
+    title->setIcon(torrentIcon(item));
     title->setData(Qt::UserRole, i);
     title->setCheckState(item.state == track::torrent::ItemState::Selected ||
                                  item.state == track::torrent::ItemState::Preferred
@@ -209,6 +248,9 @@ void TorrentsWidget::populate() {
   statusLabel_->setText(tr("%1 torrent(s), %2 archived")
                             .arg(table_->rowCount())
                             .arg(track::torrent::archiveCount()));
+  if (table_->rowCount() == 0) {
+    statusLabel_->setText(tr("No new torrents found."));
+  }
 }
 
 void TorrentsWidget::setBusy(bool busy) {
@@ -218,6 +260,20 @@ void TorrentsWidget::setBusy(bool busy) {
 
 void TorrentsWidget::showSettings() {
   SettingsDialog::show(this);
+}
+
+void TorrentsWidget::showContextMenu(const QPoint& position) {
+  QMenu menu(this);
+  menu.addAction(QIcon(":/icons/classic/16px/navigation-270-button.png"),
+                 tr("Download marked torrents"), this, &TorrentsWidget::openSelected);
+  menu.addAction(QIcon(":/icons/classic/16px/cross.png"), tr("Discard marked torrents"), this,
+                 &TorrentsWidget::archiveSelected);
+  menu.addSeparator();
+  menu.addAction(QIcon(":/icons/classic/16px/arrow-circle-315.png"), tr("Check new torrents"),
+                 this, &TorrentsWidget::fetch);
+  menu.addAction(QIcon(":/icons/classic/16px/gear.png"), tr("Settings"), this,
+                 &TorrentsWidget::showSettings);
+  menu.exec(table_->viewport()->mapToGlobal(position));
 }
 
 }  // namespace gui

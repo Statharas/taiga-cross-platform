@@ -1,14 +1,21 @@
 #include <QApplication>
 #include <QFile>
+#include <QLabel>
+#include <QLineEdit>
 #include <QMenuBar>
 #include <QStackedWidget>
+#include <QTableWidget>
+#include <QToolBar>
 #include <QTreeWidget>
 
 #include <cstdlib>
 #include <iostream>
 
 #include "gui/main/main_window.hpp"
+#include "gui/main/now_playing_page_widget.hpp"
+#include "gui/models/anime_list_model.hpp"
 #include "gui/main/navigation_widget.hpp"
+#include "gui/torrents/torrents_widget.hpp"
 
 namespace {
 
@@ -79,8 +86,11 @@ int main(int argc, char* argv[]) {
 
   for (const auto& icon : {
            "16px/calendar-month", "16px/category", "16px/chart", "16px/clock",
-           "16px/document-attribute", "16px/feed", "16px/film", "16px/magnifier-left",
-           "16px/sort-quantity-descending", "16px/ui-scroll-pane-detail",
+           "16px/cross", "16px/document-attribute", "16px/document-export",
+           "16px/document-import", "16px/feed", "16px/film", "16px/magnifier-left",
+           "16px/navigation-270-button", "16px/sort-quantity-descending",
+           "16px/square-small-blue", "16px/square-small-gray", "16px/square-small-green",
+           "16px/square-small-red", "16px/ui-scroll-pane-detail",
            "24px/application-export", "24px/application-sidebar-list",
            "24px/arrow-circle-double-135", "24px/feed", "24px/folder-open", "24px/gear",
            "24px/globe", "24px/inbox-document", "24px/megaphone",
@@ -89,6 +99,47 @@ int main(int argc, char* argv[]) {
     const auto message = QString("Bundled classic UI icon missing: %1").arg(path).toStdString();
     require(QFile::exists(path), message.c_str());
   }
+
+  gui::AnimeListModel animeListModel(nullptr);
+  require(animeListModel.columnCount() == gui::AnimeListModel::NUM_COLUMNS,
+          "Anime list model column count is inconsistent");
+  require(animeListModel.headerData(gui::AnimeListModel::COLUMN_STATUS, Qt::Horizontal,
+                                    Qt::DisplayRole)
+              .toString()
+              .isEmpty(),
+          "Anime list v1 status icon column should have a blank header");
+  require(animeListModel.headerData(gui::AnimeListModel::COLUMN_TITLE, Qt::Horizontal,
+                                    Qt::DisplayRole)
+              .toString() == "Title",
+          "Anime list title column shifted away from v1 order");
+
+  gui::TorrentsWidget torrents;
+  const auto* torrentSearch = torrents.findChild<QLineEdit*>();
+  const auto* torrentTable = torrents.findChild<QTableWidget*>();
+  const auto* torrentToolbar = torrents.findChild<QToolBar*>();
+  require(torrentSearch != nullptr && torrentSearch->placeholderText() == "Search for torrents",
+          "Torrent search placeholder no longer matches v1");
+  require(torrentToolbar != nullptr, "Torrent toolbar missing");
+  require(torrentToolbar->actions().size() >= 6, "Torrent toolbar lost v1 action/separator shape");
+  require(torrentTable != nullptr && torrentTable->columnCount() == 11,
+          "Torrent table lost the v1 column inventory");
+  require(torrentTable->horizontalHeaderItem(0)->text() == "Anime title",
+          "Torrent first column should remain Anime title");
+  require(torrentTable->horizontalHeaderItem(10)->text() == "Release date",
+          "Torrent release-date column missing");
+
+  gui::NowPlayingPageWidget nowPlaying;
+  nowPlaying.show();
+  app.processEvents();
+  bool staleHeaderVisible = false;
+  for (const auto* label : nowPlaying.findChildren<QLabel*>()) {
+    if ((label->text() == "Alternative titles" || label->text() == "Details" ||
+         label->text() == "Synopsis") &&
+        label->isVisible()) {
+      staleHeaderVisible = true;
+    }
+  }
+  require(!staleHeaderVisible, "Now Playing idle state should not show orphan detail headers");
 
   return EXIT_SUCCESS;
 }

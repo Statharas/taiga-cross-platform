@@ -54,6 +54,7 @@ ListView::ListView(QWidget* parent, AnimeListModel* model, AnimeListProxyModel* 
   header()->hideSection(AnimeListModel::COLUMN_STARTED);
   header()->hideSection(AnimeListModel::COLUMN_COMPLETED);
   header()->hideSection(AnimeListModel::COLUMN_NOTES);
+  header()->resizeSection(AnimeListModel::COLUMN_STATUS, 22);
   header()->resizeSection(AnimeListModel::COLUMN_TITLE, 295);
   header()->resizeSection(AnimeListModel::COLUMN_PROGRESS, 150);
   header()->resizeSection(AnimeListModel::COLUMN_DURATION, 75);

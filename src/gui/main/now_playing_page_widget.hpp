@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <QList>
 #include <QWidget>
 #include <optional>
 
@@ -41,6 +42,7 @@ private:
   QLabel* m_detailsLabel = nullptr;
   QLabel* m_synopsisLabel = nullptr;
   QLabel* m_emptyLabel = nullptr;
+  QList<QWidget*> m_episodeWidgets;
 
   std::optional<Anime> m_anime;
   std::optional<track::Episode> m_episode;

@@ -62,6 +62,7 @@ NowPlayingPageWidget::NowPlayingPageWidget(QWidget* parent) : QWidget(parent) {
   m_posterLabel->setFrameShape(QFrame::StyledPanel);
   m_posterLabel->setScaledContents(false);
   rootLayout->addWidget(m_posterLabel, 0, Qt::AlignTop);
+  m_episodeWidgets.push_back(m_posterLabel);
 
   auto* content = new QWidget(this);
   auto* contentLayout = new QVBoxLayout(content);
@@ -76,31 +77,48 @@ NowPlayingPageWidget::NowPlayingPageWidget(QWidget* parent) : QWidget(parent) {
   m_titleLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
   m_titleLabel->setOpenExternalLinks(false);
   contentLayout->addWidget(m_titleLabel);
+  m_episodeWidgets.push_back(m_titleLabel);
 
   m_actionLabel = new QLabel(content);
   m_actionLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
   contentLayout->addWidget(m_actionLabel);
+  m_episodeWidgets.push_back(m_actionLabel);
 
   contentLayout->addSpacing(14);
-  contentLayout->addWidget(sectionTitle(tr("Alternative titles"), content));
-  contentLayout->addWidget(separator(content));
+  auto* alternativeTitle = sectionTitle(tr("Alternative titles"), content);
+  auto* alternativeSeparator = separator(content);
+  contentLayout->addWidget(alternativeTitle);
+  contentLayout->addWidget(alternativeSeparator);
+  m_episodeWidgets.push_back(alternativeTitle);
+  m_episodeWidgets.push_back(alternativeSeparator);
   m_alternativeTitlesLabel = new QLabel(content);
   m_alternativeTitlesLabel->setWordWrap(true);
   contentLayout->addWidget(m_alternativeTitlesLabel);
+  m_episodeWidgets.push_back(m_alternativeTitlesLabel);
 
   contentLayout->addSpacing(4);
-  contentLayout->addWidget(sectionTitle(tr("Details"), content));
-  contentLayout->addWidget(separator(content));
+  auto* detailsTitle = sectionTitle(tr("Details"), content);
+  auto* detailsSeparator = separator(content);
+  contentLayout->addWidget(detailsTitle);
+  contentLayout->addWidget(detailsSeparator);
+  m_episodeWidgets.push_back(detailsTitle);
+  m_episodeWidgets.push_back(detailsSeparator);
   m_detailsLabel = new QLabel(content);
   m_detailsLabel->setTextFormat(Qt::RichText);
   contentLayout->addWidget(m_detailsLabel);
+  m_episodeWidgets.push_back(m_detailsLabel);
 
   contentLayout->addSpacing(4);
-  contentLayout->addWidget(sectionTitle(tr("Synopsis"), content));
-  contentLayout->addWidget(separator(content));
+  auto* synopsisTitle = sectionTitle(tr("Synopsis"), content);
+  auto* synopsisSeparator = separator(content);
+  contentLayout->addWidget(synopsisTitle);
+  contentLayout->addWidget(synopsisSeparator);
+  m_episodeWidgets.push_back(synopsisTitle);
+  m_episodeWidgets.push_back(synopsisSeparator);
   m_synopsisLabel = new QLabel(content);
   m_synopsisLabel->setWordWrap(true);
   contentLayout->addWidget(m_synopsisLabel);
+  m_episodeWidgets.push_back(m_synopsisLabel);
 
   m_emptyLabel = new QLabel(tr("No media is currently detected."), content);
   m_emptyLabel->setAlignment(Qt::AlignCenter);
@@ -145,13 +163,10 @@ void NowPlayingPageWidget::setPlaying(const track::Episode& episode) {
 
 void NowPlayingPageWidget::refresh() {
   const bool hasEpisode = m_episode.has_value();
-  m_emptyLabel->setVisible(!hasEpisode);
-  m_posterLabel->setVisible(hasEpisode);
-  m_titleLabel->setVisible(hasEpisode);
-  m_actionLabel->setVisible(hasEpisode);
-  m_alternativeTitlesLabel->setVisible(hasEpisode);
-  m_detailsLabel->setVisible(hasEpisode);
-  m_synopsisLabel->setVisible(hasEpisode);
+  m_emptyLabel->setVisible(false);
+  for (auto* widget : m_episodeWidgets) {
+    widget->setVisible(hasEpisode);
+  }
 
   if (!hasEpisode) {
     m_titleLabel->clear();

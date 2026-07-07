@@ -53,6 +53,30 @@ void paintProgressBar(QPainter* painter, const QStyleOption& option, const Anime
   const int watched = std::clamp(entry->watched_episodes, 0,
                                  episodes > 0 ? episodes : std::numeric_limits<int>::max());
 
+  if (episodes <= 0) {
+    const auto baseText = option.palette.color(QPalette::ColorRole::Text);
+    const auto mutedText =
+        option.palette.color(QPalette::ColorGroup::Disabled, QPalette::ColorRole::Text);
+    const auto slashWidth = option.fontMetrics.horizontalAdvance("/");
+    const auto gap = 4;
+    const auto center = option.rect.center().x();
+
+    auto watchedRect = option.rect;
+    watchedRect.setRight(center - gap);
+    auto totalRect = option.rect;
+    totalRect.setLeft(center + slashWidth + gap);
+
+    painter->setPen(mutedText);
+    painter->drawText(option.rect, Qt::AlignCenter, "/");
+
+    painter->setPen(watched > 0 ? baseText : mutedText);
+    painter->drawText(watchedRect, Qt::AlignRight | Qt::AlignVCenter, formatNumber(watched, "0"));
+
+    painter->setPen(mutedText);
+    painter->drawText(totalRect, Qt::AlignLeft | Qt::AlignVCenter, "?");
+    return;
+  }
+
   QStyleOptionProgressBar styleOption{};
   styleOption.state = option.state | QStyle::State_Horizontal;
   styleOption.direction = option.direction;

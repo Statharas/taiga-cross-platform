@@ -41,19 +41,28 @@
     <file>icons/warning.svg</file>
     <file>icons/web_asset.svg</file>
     <file>icons/classic/16px/application-small.png</file>
+    <file>icons/classic/16px/arrow-circle-315.png</file>
     <file>icons/classic/16px/balloon-left.png</file>
     <file>icons/classic/16px/calendar-month.png</file>
     <file>icons/classic/16px/category.png</file>
     <file>icons/classic/16px/chart.png</file>
     <file>icons/classic/16px/clock.png</file>
     <file>icons/classic/16px/document-attribute.png</file>
+    <file>icons/classic/16px/document-export.png</file>
+    <file>icons/classic/16px/document-import.png</file>
     <file>icons/classic/16px/feed.png</file>
     <file>icons/classic/16px/film.png</file>
     <file>icons/classic/16px/folder-small-horizontal.png</file>
     <file>icons/classic/16px/gear.png</file>
     <file>icons/classic/16px/magnifier-left.png</file>
+    <file>icons/classic/16px/navigation-270-button.png</file>
     <file>icons/classic/16px/sort-quantity-descending.png</file>
+    <file>icons/classic/16px/square-small-blue.png</file>
+    <file>icons/classic/16px/square-small-gray.png</file>
+    <file>icons/classic/16px/square-small-green.png</file>
+    <file>icons/classic/16px/square-small-red.png</file>
     <file>icons/classic/16px/ui-scroll-pane-detail.png</file>
+    <file>icons/classic/16px/cross.png</file>
     <file>icons/classic/24px/application-export.png</file>
     <file>icons/classic/24px/application-sidebar-list.png</file>
     <file>icons/classic/24px/arrow-circle-double-135.png</file>

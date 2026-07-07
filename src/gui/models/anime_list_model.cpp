@@ -22,6 +22,7 @@
 #include <QColor>
 #include <QDateTime>
 #include <QFont>
+#include <QIcon>
 #include <QPalette>
 #include <QSize>
 
@@ -31,6 +32,24 @@
 #include "media/anime_season.hpp"
 
 namespace gui {
+
+namespace {
+
+QString statusIconPath(anime::Status status) {
+  switch (status) {
+    case anime::Status::Airing:
+      return ":/icons/classic/16px/square-small-green.png";
+    case anime::Status::FinishedAiring:
+      return ":/icons/classic/16px/square-small-blue.png";
+    case anime::Status::NotYetAired:
+      return ":/icons/classic/16px/square-small-red.png";
+    case anime::Status::Unknown:
+      break;
+  }
+  return ":/icons/classic/16px/square-small-gray.png";
+}
+
+}  // namespace
 
 AnimeListModel::AnimeListModel(QObject* parent) : QAbstractListModel(parent) {
   refreshIds();
@@ -78,6 +97,8 @@ QVariant AnimeListModel::data(const QModelIndex& index, int role) const {
   switch (role) {
     case Qt::DisplayRole:
       switch (index.column()) {
+        case COLUMN_STATUS:
+          return {};
         case COLUMN_TITLE:
           return QString::fromStdString(anime->titles.romaji);
         case COLUMN_DURATION:
@@ -109,8 +130,16 @@ QVariant AnimeListModel::data(const QModelIndex& index, int role) const {
       }
       break;
 
+    case Qt::DecorationRole:
+      if (index.column() == COLUMN_STATUS) {
+        return QIcon(statusIconPath(anime->status));
+      }
+      break;
+
     case Qt::ToolTipRole:
       switch (index.column()) {
+        case COLUMN_STATUS:
+          return formatStatus(anime->status);
         case COLUMN_TITLE:
           return QString::fromStdString(anime->titles.romaji);
         case COLUMN_SEASON:
@@ -126,6 +155,7 @@ QVariant AnimeListModel::data(const QModelIndex& index, int role) const {
 
     case Qt::TextAlignmentRole: {
       switch (index.column()) {
+        case COLUMN_STATUS:
         case COLUMN_PROGRESS:
         case COLUMN_REWATCHES:
         case COLUMN_SCORE:
@@ -207,6 +237,7 @@ QVariant AnimeListModel::headerData(int section, Qt::Orientation orientation, in
       // clang-format off
       switch (section) {
         case COLUMN_TITLE: return tr("Title");
+        case COLUMN_STATUS: return {};
         case COLUMN_PROGRESS: return tr("Progress");
         case COLUMN_DURATION: return tr("Duration");
         case COLUMN_REWATCHES: return tr("Rewatches");
@@ -225,6 +256,7 @@ QVariant AnimeListModel::headerData(int section, Qt::Orientation orientation, in
 
     case Qt::TextAlignmentRole: {
       switch (section) {
+        case COLUMN_STATUS:
         case COLUMN_PROGRESS:
         case COLUMN_REWATCHES:
         case COLUMN_SCORE:
@@ -243,6 +275,7 @@ QVariant AnimeListModel::headerData(int section, Qt::Orientation orientation, in
 
     case Qt::InitialSortOrderRole: {
       switch (section) {
+        case COLUMN_STATUS:
         case COLUMN_PROGRESS:
         case COLUMN_DURATION:
         case COLUMN_REWATCHES:
