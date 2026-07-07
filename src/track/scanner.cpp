@@ -19,6 +19,7 @@
 #include "scanner.hpp"
 
 #include <QDirIterator>
+#include <QSet>
 #include <optional>
 
 #include "track/episode.hpp"
@@ -66,6 +67,35 @@ std::optional<QString> findFolder(const QString& path, const int anime_id) {
   }
 
   return std::nullopt;
+}
+
+ScanSummary scanAvailableEpisodes(const std::vector<std::string>& libraryFolders) {
+  ScanSummary summary;
+  QSet<int> animeIds;
+
+  for (const auto& folder : libraryFolders) {
+    const auto root = QString::fromStdString(folder);
+    if (root.isEmpty()) continue;
+    if (!QDir{root}.exists()) continue;
+    ++summary.folders;
+
+    QDirIterator it{root, QDir::Files, QDirIterator::Subdirectories};
+    while (it.hasNext()) {
+      const auto info = it.nextFileInfo();
+      if (!info.isFile()) continue;
+      ++summary.files;
+
+      auto episode = recognition::parseFileInfo(info);
+      const auto animeId = track::recognition::identify(episode);
+      if (animeId <= 0) continue;
+
+      ++summary.recognized;
+      animeIds.insert(animeId);
+    }
+  }
+
+  summary.anime = animeIds.size();
+  return summary;
 }
 
 }  // namespace track

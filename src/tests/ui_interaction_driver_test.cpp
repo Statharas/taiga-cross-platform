@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
   QTest::keyClicks(searchBox, "Nisekoi");
   QMetaObject::invokeMethod(searchBox, "returnPressed", Qt::DirectConnection);
   app.processEvents();
-  require(window.statusBar()->currentMessage() == "MyAnimeList search is not implemented yet.",
+  require(window.statusBar()->currentMessage() == "MyAnimeList access token is not configured.",
           "Enter on Search page did not submit through service search mode");
 
   window.navigateTo(gui::MainWindowPage::Torrents);

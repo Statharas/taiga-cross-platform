@@ -33,7 +33,7 @@
 
 namespace taiga_sync {
 
-Service::Service() : QObject{qApp}, manager_{taiga::network()} {
+Service::Service() : QObject{nullptr}, manager_{taiga::network()} {
   api_.setCommonHeaders(taiga::NetworkAccessManager::commonHeaders());
 }
 
@@ -57,6 +57,7 @@ QString serviceName(const ServiceId serviceId) {
     case ServiceId::MyAnimeList: return "MyAnimeList";
     case ServiceId::Kitsu: return "Kitsu";
     case ServiceId::AniList: return "AniList";  
+    case ServiceId::Unknown: break;
   }
   // clang-format on
   return "Taiga";
@@ -68,6 +69,7 @@ QString serviceSlug(const ServiceId serviceId) {
     case ServiceId::MyAnimeList: return "myanimelist";
     case ServiceId::Kitsu: return "kitsu";
     case ServiceId::AniList: return "anilist";
+    case ServiceId::Unknown: break;
   }
   // clang-format on
   return "taiga";
@@ -81,6 +83,8 @@ void fetchAnime(const int id) {
       break;
     case ServiceId::AniList:
       anilist::Service::instance()->fetchAnime(id);
+      break;
+    case ServiceId::Unknown:
       break;
   }
 }
@@ -114,10 +118,10 @@ void searchTitle(const QString& query, std::function<void(bool, const QString&)>
       anilist::Service::instance()->search(trimmed, std::move(done));
       break;
     case ServiceId::MyAnimeList:
+      myanimelist::Service::instance()->search(trimmed, std::move(done));
+      break;
     case ServiceId::Kitsu:
-      if (done) {
-        done(false, QString{"%1 search is not implemented yet."}.arg(serviceName(currentServiceId())));
-      }
+      kitsu::Service::instance()->search(trimmed, std::move(done));
       break;
     case ServiceId::Unknown:
       if (done) done(false, "No active metadata service is configured.");
@@ -136,6 +140,9 @@ void synchronize(std::function<void(bool, const QString&)> done) {
     case ServiceId::AniList:
       anilist::Service::instance()->fetchListEntries(std::move(done));
       break;
+    case ServiceId::Unknown:
+      if (done) done(false, "No active metadata service is configured.");
+      break;
   }
 }
 
@@ -147,6 +154,8 @@ QString animePageUrl(const int id) {
       return QString::fromStdString(kitsu::animePageUrl(id));
     case ServiceId::AniList:
       return QString::fromStdString(anilist::animePageUrl(id));
+    case ServiceId::Unknown:
+      break;
   }
   return {};
 }

@@ -46,6 +46,7 @@ public:
 
   void fetchListEntries(std::function<void(bool, const QString&)> done = {});
   void fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done = {});
+  void search(const QString& query, std::function<void(bool, const QString&)> done = {});
 
 private:
   void fetchAuthenticatedUser(std::function<void(bool, const QString&, const QString&)> done);

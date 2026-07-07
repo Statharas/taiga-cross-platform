@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
+#include <QFile>
 
 #include <anisthesia.hpp>
 
@@ -25,6 +26,7 @@
 #include "track/torrent_feed.hpp"
 #include "track/recognition_cache.hpp"
 #include "track/recognition_normalize.hpp"
+#include "track/scanner.hpp"
 
 namespace {
 
@@ -194,6 +196,18 @@ int main(int argc, char* argv[]) {
   require(fansubTorrents.front().state == track::torrent::ItemState::DiscardedInactive,
           "Preferred fansub filters must not select anime outside the user's list");
   taiga::settings.setStringValue("rss.torrent.filters.itemsJson", {});
+
+  const auto libraryPath = dataDir.filePath("library");
+  QDir{}.mkpath(libraryPath);
+  QFile episodeFile{libraryPath + "/Example Anime - 01.mkv"};
+  require(episodeFile.open(QIODevice::WriteOnly), "Could not create scanner fixture file");
+  episodeFile.write("test");
+  episodeFile.close();
+  const auto scanSummary = track::scanAvailableEpisodes({libraryPath.toStdString()});
+  require(scanSummary.folders == 1, "Scanner did not count configured library folder");
+  require(scanSummary.files == 1, "Scanner did not count library media file");
+  require(scanSummary.recognized == 1, "Scanner did not recognize known fixture episode");
+  require(scanSummary.anime == 1, "Scanner did not count unique recognized anime");
 
   auto groupedItems = std::vector<track::torrent::Item>{
       {.published = "Tue, 07 Jul 2026 13:00:00 GMT",

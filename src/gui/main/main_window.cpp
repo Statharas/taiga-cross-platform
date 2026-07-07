@@ -43,6 +43,7 @@
 #include "taiga/application.hpp"
 #include "taiga/session.hpp"
 #include "taiga/settings.hpp"
+#include "track/scanner.hpp"
 #include "track/play.hpp"
 #include "ui_main_window.h"
 
@@ -488,7 +489,20 @@ void MainWindow::playRandomAnime() {
 }
 
 void MainWindow::scanAvailableEpisodes() {
-  statusBar()->showMessage(tr("Scanning available episodes is not implemented yet."), 5000);
+  const auto folders = taiga::settings.libraryFolders();
+  if (folders.empty()) {
+    QMessageBox::information(this, tr("Scan Available Episodes"),
+                             tr("Set up at least one library folder before scanning."));
+    return;
+  }
+
+  statusBar()->showMessage(tr("Scanning available episodes..."));
+  const auto summary = track::scanAvailableEpisodes(folders);
+  statusBar()->showMessage(tr("Scanned %1 file(s); recognized %2 episode(s) across %3 anime.")
+                               .arg(summary.files)
+                               .arg(summary.recognized)
+                               .arg(summary.anime),
+                           8000);
 }
 
 void MainWindow::support() const {

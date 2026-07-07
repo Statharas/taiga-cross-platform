@@ -95,6 +95,18 @@ QUrl seasonUrl(const anime::Season season, int offset) {
   return url;
 }
 
+QUrl searchUrl(const QString& queryText) {
+  QUrl url{"https://kitsu.app/api/edge/anime"};
+  QUrlQuery query;
+  query.addQueryItem("filter[text]", queryText);
+  query.addQueryItem("page[limit]", "50");
+  query.addQueryItem("fields[anime]",
+                     "canonicalTitle,titles,subtype,status,synopsis,startDate,endDate,"
+                     "episodeCount,episodeLength,averageRating,popularityRank,ageRating,posterImage");
+  url.setQuery(query);
+  return url;
+}
+
 int nextOffset(const QJsonObject& root) {
   const auto next = root.value("links").toObject().value("next").toString();
   if (next.isEmpty()) return -1;
@@ -120,6 +132,35 @@ int animeIdForEntry(const QJsonObject& entry) {
 Service* Service::instance() {
   static Service service;
   return &service;
+}
+
+void Service::search(const QString& query, std::function<void(bool, const QString&)> done) {
+  auto* reply = taiga::network()->get(apiRequest(searchUrl(query)));
+  connect(reply, &QNetworkReply::finished, this, [reply, done = std::move(done)]() mutable {
+    if (reply->error() != QNetworkReply::NoError) {
+      const auto message = reply->errorString();
+      reply->deleteLater();
+      if (done) done(false, message);
+      return;
+    }
+
+    const auto document = QJsonDocument::fromJson(reply->readAll());
+    reply->deleteLater();
+    if (!document.isObject()) {
+      if (done) done(false, "Could not parse Kitsu search results.");
+      return;
+    }
+
+    int updated = 0;
+    for (const auto& value : document.object().value("data").toArray()) {
+      const auto media = parseMedia(value.toObject());
+      if (!media) continue;
+      anime::db.updateItem(*media);
+      ++updated;
+    }
+
+    if (done) done(true, QString{"Found %1 Kitsu search result(s)."}.arg(updated));
+  });
 }
 
 void Service::fetchListEntries(std::function<void(bool, const QString&)> done) {

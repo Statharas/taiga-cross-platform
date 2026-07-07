@@ -19,12 +19,21 @@
 #pragma once
 
 #include <QString>
+#include <vector>
 #include <optional>
 
 namespace track {
 
+struct ScanSummary {
+  int folders = 0;
+  int files = 0;
+  int recognized = 0;
+  int anime = 0;
+};
+
 std::optional<QString> findEpisode(const QString& path, const int anime_id,
                                    const int episode_number);
 std::optional<QString> findFolder(const QString& path, const int anime_id);
+ScanSummary scanAvailableEpisodes(const std::vector<std::string>& libraryFolders);
 
 }  // namespace track

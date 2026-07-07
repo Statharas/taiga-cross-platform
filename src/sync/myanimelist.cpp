@@ -89,6 +89,22 @@ QNetworkRequest seasonRequest(const anime::Season season, int offset) {
   return request;
 }
 
+QNetworkRequest searchRequest(const QString& queryText) {
+  QUrl url{"https://api.myanimelist.net/v2/anime"};
+  QUrlQuery query;
+  query.addQueryItem("q", queryText);
+  query.addQueryItem("limit", "50");
+  query.addQueryItem("nsfw", "true");
+  query.addQueryItem("fields", fields());
+  url.setQuery(query);
+
+  QNetworkRequest request{url};
+  request.setRawHeader("Authorization",
+                       "Bearer " +
+                           QByteArray::fromStdString(taiga::accounts.myanimelistAccessToken()));
+  return request;
+}
+
 int nextOffset(const QJsonObject& root) {
   const auto next = root.value("paging").toObject().value("next").toString();
   if (next.isEmpty()) return -1;
@@ -102,6 +118,40 @@ int nextOffset(const QJsonObject& root) {
 Service* Service::instance() {
   static Service service;
   return &service;
+}
+
+void Service::search(const QString& query, std::function<void(bool, const QString&)> done) {
+  if (taiga::accounts.myanimelistAccessToken().empty()) {
+    if (done) done(false, "MyAnimeList access token is not configured.");
+    return;
+  }
+
+  auto* reply = taiga::network()->get(searchRequest(query));
+  connect(reply, &QNetworkReply::finished, this, [reply, done = std::move(done)]() mutable {
+    if (reply->error() != QNetworkReply::NoError) {
+      const auto message = reply->errorString();
+      reply->deleteLater();
+      if (done) done(false, message);
+      return;
+    }
+
+    const auto document = QJsonDocument::fromJson(reply->readAll());
+    reply->deleteLater();
+    if (!document.isObject()) {
+      if (done) done(false, "Could not parse MyAnimeList search results.");
+      return;
+    }
+
+    int updated = 0;
+    for (const auto& value : document.object().value("data").toArray()) {
+      const auto media = parseMedia(value.toObject().value("node"));
+      if (!media) continue;
+      anime::db.updateItem(*media);
+      ++updated;
+    }
+
+    if (done) done(true, QString{"Found %1 MyAnimeList search result(s)."}.arg(updated));
+  });
 }
 
 void Service::fetchListEntries(std::function<void(bool, const QString&)> done) {
