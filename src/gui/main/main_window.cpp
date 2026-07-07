@@ -423,12 +423,7 @@ void MainWindow::updateSearchBoxForPage(MainWindowPage page) {
       break;
     case MainWindowPage::Torrents:
       m_searchBox->setPlaceholderText(tr("Search for torrents"));
-      if (m_torrentsWidget) {
-        m_torrentsWidget->setFilterText(m_searchBox->text());
-        m_pageSearchConnection =
-            connect(m_searchBox, &QLineEdit::textChanged, m_torrentsWidget,
-                    &TorrentsWidget::setFilterText);
-      }
+      if (m_torrentsWidget) m_torrentsWidget->setFilterText({});
       break;
     case MainWindowPage::Home:
     case MainWindowPage::Search:

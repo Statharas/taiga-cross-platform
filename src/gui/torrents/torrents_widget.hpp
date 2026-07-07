@@ -31,6 +31,7 @@ class TorrentsWidget final : public QWidget {
 public:
   explicit TorrentsWidget(QWidget* parent = nullptr);
   ~TorrentsWidget() = default;
+  QString filterText() const;
 
 public slots:
   void submitSearch(const QString& text);

@@ -33,6 +33,8 @@ event loop.
 - Enter on Search submits through `taiga_sync::searchTitle()`.
 - Torrents page switches the shared search box to feed-search mode.
 - Torrents page has no duplicate local search box.
+- Typing in the shared torrent search box does not live-filter the current
+  torrent table.
 - Enter on Torrents submits through torrent feed search.
 
 The torrent submit test intentionally uses an invalid configured URL to verify

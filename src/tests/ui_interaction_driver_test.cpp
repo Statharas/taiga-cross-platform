@@ -72,7 +72,11 @@ int main(int argc, char* argv[]) {
           "Torrents page did not switch shared search box to feed search mode");
   searchBox->setFocus();
   searchBox->clear();
+  require(torrents->filterText().isEmpty(), "Torrent filter should start empty in feed-search mode");
   QTest::keyClicks(searchBox, "Nisekoi");
+  app.processEvents();
+  require(torrents->filterText().isEmpty(),
+          "Typing in torrent search should not live-filter the current torrent table");
   QMetaObject::invokeMethod(searchBox, "returnPressed", Qt::DirectConnection);
   app.processEvents();
   require(hasLabelText(*torrents, "Torrent feed URL is invalid."),

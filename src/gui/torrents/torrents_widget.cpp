@@ -147,10 +147,12 @@ TorrentsWidget::TorrentsWidget(QWidget* parent) : QWidget(parent) {
   connect(table_, &QTableWidget::itemDoubleClicked, this, [this]() { openSelected(); });
   connect(table_, &QTableWidget::itemChanged, this, &TorrentsWidget::handleItemChanged);
   connect(table_, &QWidget::customContextMenuRequested, this, &TorrentsWidget::showContextMenu);
-  connect(new QShortcut(QKeySequence{Qt::Key_Return}, table_), &QShortcut::activated, this,
-          &TorrentsWidget::openSelected);
-  connect(new QShortcut(QKeySequence{Qt::Key_Enter}, table_), &QShortcut::activated, this,
-          &TorrentsWidget::openSelected);
+  auto* returnShortcut = new QShortcut(QKeySequence{Qt::Key_Return}, table_);
+  returnShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+  connect(returnShortcut, &QShortcut::activated, this, &TorrentsWidget::openSelected);
+  auto* enterShortcut = new QShortcut(QKeySequence{Qt::Key_Enter}, table_);
+  enterShortcut->setContext(Qt::WidgetWithChildrenShortcut);
+  connect(enterShortcut, &QShortcut::activated, this, &TorrentsWidget::openSelected);
 
   autoCheckTimer_ = new QTimer(this);
   connect(autoCheckTimer_, &QTimer::timeout, this, &TorrentsWidget::tickAutoCheck);
@@ -328,6 +330,10 @@ void TorrentsWidget::openSelected() const {
     const auto sourceRow = table_->item(index.row(), 0)->data(Qt::UserRole).toInt();
     if (sourceRow >= 0 && sourceRow < static_cast<int>(items_.size())) startDownload(items_.at(sourceRow));
   }
+}
+
+QString TorrentsWidget::filterText() const {
+  return filterText_;
 }
 
 void TorrentsWidget::setFilterText(const QString& text) {
