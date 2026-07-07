@@ -18,7 +18,6 @@
 #include <QHeaderView>
 #include <QIcon>
 #include <QLabel>
-#include <QLineEdit>
 #include <QMenu>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -111,10 +110,6 @@ TorrentsWidget::TorrentsWidget(QWidget* parent) : QWidget(parent) {
   auto* spacer = new QWidget(toolbar);
   spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
   toolbar->addWidget(spacer);
-  filterEdit_ = new QLineEdit(toolbar);
-  filterEdit_->setPlaceholderText(tr("Search for torrents"));
-  filterEdit_->setMaximumWidth(240);
-  toolbar->addWidget(filterEdit_);
   layout->addWidget(toolbar);
 
   table_ = new QTableWidget(this);
@@ -148,7 +143,6 @@ TorrentsWidget::TorrentsWidget(QWidget* parent) : QWidget(parent) {
   connect(openAction, &QAction::triggered, this, &TorrentsWidget::openSelected);
   connect(discardAllAction, &QAction::triggered, this, &TorrentsWidget::archiveVisible);
   connect(settingsAction, &QAction::triggered, this, &TorrentsWidget::showSettings);
-  connect(filterEdit_, &QLineEdit::textChanged, this, &TorrentsWidget::populate);
   connect(table_, &QTableWidget::itemDoubleClicked, this, [this]() { openSelected(); });
   connect(table_, &QTableWidget::itemChanged, this, &TorrentsWidget::handleItemChanged);
   connect(table_, &QWidget::customContextMenuRequested, this, &TorrentsWidget::showContextMenu);
@@ -319,6 +313,13 @@ void TorrentsWidget::openSelected() const {
   }
 }
 
+void TorrentsWidget::setFilterText(const QString& text) {
+  const auto next = text.trimmed();
+  if (filterText_ == next) return;
+  filterText_ = next;
+  populate();
+}
+
 void TorrentsWidget::preferSameGroup() {
   const auto* selected = currentItem();
   if (!selected || selected->group.isEmpty()) return;
@@ -335,7 +336,7 @@ void TorrentsWidget::preferSameGroup() {
 
 void TorrentsWidget::populate() {
   populating_ = true;
-  const auto filter = filterEdit_ ? filterEdit_->text().trimmed() : QString{};
+  const auto filter = filterText_;
   table_->setRowCount(0);
   lastCheckedRow_ = -1;
   std::optional<track::torrent::Category> currentCategory;

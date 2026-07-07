@@ -15,7 +15,6 @@
 #include "track/torrent_feed.hpp"
 
 class QLabel;
-class QLineEdit;
 class QNetworkReply;
 class QPoint;
 class QAction;
@@ -32,6 +31,9 @@ class TorrentsWidget final : public QWidget {
 public:
   explicit TorrentsWidget(QWidget* parent = nullptr);
   ~TorrentsWidget() = default;
+
+public slots:
+  void setFilterText(const QString& text);
 
 private:
   void archiveSelected();
@@ -56,10 +58,10 @@ private:
   const track::torrent::Item* currentItem() const;
 
   QLabel* statusLabel_ = nullptr;
-  QLineEdit* filterEdit_ = nullptr;
   QAction* refreshAction_ = nullptr;
   QTableWidget* table_ = nullptr;
   QTimer* autoCheckTimer_ = nullptr;
+  QString filterText_;
   bool populating_ = false;
   int autoCheckRemaining_ = 0;
   int lastCheckedRow_ = -1;

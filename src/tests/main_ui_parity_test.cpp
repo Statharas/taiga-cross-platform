@@ -114,11 +114,10 @@ int main(int argc, char* argv[]) {
           "Anime list title column shifted away from v1 order");
 
   gui::TorrentsWidget torrents;
-  const auto* torrentSearch = torrents.findChild<QLineEdit*>();
   const auto* torrentTable = torrents.findChild<QTableWidget*>();
   const auto* torrentToolbar = torrents.findChild<QToolBar*>();
-  require(torrentSearch != nullptr && torrentSearch->placeholderText() == "Search for torrents",
-          "Torrent search placeholder no longer matches v1");
+  require(torrents.findChild<QLineEdit*>() == nullptr,
+          "Torrent view should use the shared shell search box, not a local search box");
   require(torrentToolbar != nullptr, "Torrent toolbar missing");
   require(torrentToolbar->actions().size() >= 6, "Torrent toolbar lost v1 action/separator shape");
   require(torrentTable != nullptr && torrentTable->columnCount() == 11,

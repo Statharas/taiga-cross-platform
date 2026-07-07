@@ -369,6 +369,7 @@ void MainWindow::setPage(MainWindowPage page) {
   initPage(page);
   ui_->statusbar->clearMessage();
   ui_->stackedWidget->setCurrentIndex(static_cast<int>(page));
+  updateSearchBoxForPage(page);
 }
 
 void MainWindow::updateTitle() {
@@ -379,6 +380,42 @@ void MainWindow::updateTitle() {
   }
 
   setWindowTitle(title);
+}
+
+void MainWindow::updateSearchBoxForPage(MainWindowPage page) {
+  if (!m_searchBox) return;
+
+  if (m_pageSearchConnection) {
+    disconnect(m_pageSearchConnection);
+    m_pageSearchConnection = {};
+  }
+
+  const auto service = taiga_sync::serviceName(taiga_sync::currentServiceId());
+  switch (page) {
+    case MainWindowPage::List:
+      m_searchBox->setPlaceholderText(tr("Filter list or search %1").arg(service));
+      break;
+    case MainWindowPage::Torrents:
+      m_searchBox->setPlaceholderText(tr("Search for torrents"));
+      if (m_torrentsWidget) {
+        m_torrentsWidget->setFilterText(m_searchBox->text());
+        m_pageSearchConnection =
+            connect(m_searchBox, &QLineEdit::textChanged, m_torrentsWidget,
+                    &TorrentsWidget::setFilterText);
+      }
+      break;
+    case MainWindowPage::Home:
+    case MainWindowPage::Search:
+    case MainWindowPage::Seasons:
+      m_searchBox->setPlaceholderText(tr("Search %1 for anime").arg(service));
+      break;
+    case MainWindowPage::History:
+    case MainWindowPage::Statistics:
+    case MainWindowPage::Library:
+    case MainWindowPage::Profile:
+      m_searchBox->setPlaceholderText(tr("Search"));
+      break;
+  }
 }
 
 void MainWindow::displayWindow() {

@@ -97,6 +97,7 @@ private:
   void initStatusbar();
   void initToolbar();
   void initTrayIcon();
+  void updateSearchBoxForPage(MainWindowPage page);
   void exportList(const QString& extension, bool (*exportFunction)(const std::string&));
 
   Ui::MainWindow* ui_ = nullptr;
@@ -108,6 +109,7 @@ private:
   NowPlayingWidget* m_nowPlayingWidget = nullptr;
   NowPlayingPageWidget* m_nowPlayingPageWidget = nullptr;
   QLineEdit* m_searchBox = nullptr;
+  QMetaObject::Connection m_pageSearchConnection;
   SearchWidget* m_searchWidget = nullptr;
   SeasonsWidget* m_seasonsWidget = nullptr;
   StatisticsWidget* m_statisticsWidget = nullptr;
