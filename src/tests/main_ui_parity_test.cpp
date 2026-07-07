@@ -126,6 +126,7 @@ int main(int argc, char* argv[]) {
   require(!torrentTable->showGrid(), "Torrent table should render as a v1 row list, not a grid");
   require(!torrentTable->verticalHeader()->isVisible(),
           "Torrent table should not show row numbers");
+  require(torrentTable->alternatingRowColors(), "Torrent table should keep v1-style row bands");
   require(torrentTable->horizontalHeaderItem(0)->text() == "Anime title",
           "Torrent first column should remain Anime title");
   require(torrentTable->horizontalHeaderItem(10)->text() == "Release date",

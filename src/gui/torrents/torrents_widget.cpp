@@ -386,7 +386,6 @@ void TorrentsWidget::populate() {
       groupItem->setFont(font);
       groupItem->setFlags(Qt::NoItemFlags);
       table_->setItem(groupRow, 0, groupItem);
-      table_->setSpan(groupRow, 0, 1, table_->columnCount());
     }
 
     const auto row = table_->rowCount();
