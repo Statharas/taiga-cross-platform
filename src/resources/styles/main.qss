@@ -29,6 +29,48 @@ QToolButton::menu-indicator {
   width: 0px;
 }
 
+/* Checkboxes */
+
+QCheckBox::indicator,
+QTreeView::indicator,
+QTreeWidget::indicator,
+QTableView::indicator,
+QTableWidget::indicator,
+QListView::indicator {
+  background-color: #fff;
+  border: 1px solid #000;
+  height: 13px;
+  width: 13px;
+}
+
+QCheckBox::indicator:hover,
+QTreeView::indicator:hover,
+QTreeWidget::indicator:hover,
+QTableView::indicator:hover,
+QTableWidget::indicator:hover,
+QListView::indicator:hover {
+  border: 2px solid #000;
+}
+
+QCheckBox::indicator:checked,
+QTreeView::indicator:checked,
+QTreeWidget::indicator:checked,
+QTableView::indicator:checked,
+QTableWidget::indicator:checked,
+QListView::indicator:checked {
+  image: url(:/icons/check.svg);
+}
+
+QCheckBox::indicator:disabled,
+QTreeView::indicator:disabled,
+QTreeWidget::indicator:disabled,
+QTableView::indicator:disabled,
+QTableWidget::indicator:disabled,
+QListView::indicator:disabled {
+  background-color: #eee;
+  border-color: #777;
+}
+
 /* Navigation */
 
 QTreeWidget#navigation {
