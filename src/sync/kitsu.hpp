@@ -47,6 +47,8 @@ public:
   void fetchListEntries(std::function<void(bool, const QString&)> done = {});
   void fetchSeason(const anime::Season season, std::function<void(bool, const QString&)> done = {});
   void search(const QString& query, std::function<void(bool, const QString&)> done = {});
+  void updateListEntry(const anime::list::Entry& entry,
+                       std::function<void(bool, const QString&)> done = {});
 
 private:
   void fetchAuthenticatedUser(std::function<void(bool, const QString&, const QString&)> done);
@@ -55,6 +57,8 @@ private:
   void fetchSeasonPage(const anime::Season season, int offset,
                        const std::shared_ptr<QList<int>>& ids,
                        std::function<void(bool, const QString&)> done);
+  void updateListEntryWithUser(const anime::list::Entry& entry, const QString& userId,
+                               std::function<void(bool, const QString&)> done);
 };
 
 }  // namespace taiga_sync::kitsu

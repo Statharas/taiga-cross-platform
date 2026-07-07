@@ -40,6 +40,7 @@ public:
 
 private:
   void refresh();
+  void refreshTimer();
 
   QLabel* m_iconLabel = nullptr;
   QLabel* m_mainLabel = nullptr;

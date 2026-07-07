@@ -82,6 +82,8 @@ set(TAIGA_CORE_SOURCES
 
 	track/episode.cpp
 	track/episode.hpp
+	track/list_update.cpp
+	track/list_update.hpp
 	track/media.cpp
 	track/media.hpp
 	track/play.cpp

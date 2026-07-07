@@ -154,9 +154,10 @@ void updateListEntry(const anime::list::Entry& entry,
       anilist::Service::instance()->updateListEntry(entry, std::move(done));
       break;
     case ServiceId::MyAnimeList:
+      myanimelist::Service::instance()->updateListEntry(entry, std::move(done));
+      break;
     case ServiceId::Kitsu:
-      anime::db.updateEntry(entry);
-      if (done) done(true, "Saved list entry locally.");
+      kitsu::Service::instance()->updateListEntry(entry, std::move(done));
       break;
     case ServiceId::Unknown:
       anime::db.updateEntry(entry);

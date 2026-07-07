@@ -24,6 +24,7 @@
 #include "media/anime_season_db.hpp"
 #include "media/anime_db.hpp"
 #include "sync/kitsu_parsers.hpp"
+#include "sync/kitsu_ratings.hpp"
 #include "taiga/accounts.hpp"
 #include "taiga/network.hpp"
 #include "taiga/settings.hpp"
@@ -105,6 +106,63 @@ QUrl searchUrl(const QString& queryText) {
                      "episodeCount,episodeLength,averageRating,popularityRank,ageRating,posterImage");
   url.setQuery(query);
   return url;
+}
+
+QUrl updateListEntryUrl(const anime::list::Entry& entry) {
+  QUrl url{entry.id == anime::list::kUnknownId
+               ? "https://kitsu.app/api/edge/library-entries"
+               : QString{"https://kitsu.app/api/edge/library-entries/%1"}.arg(entry.id)};
+  QUrlQuery query;
+  query.addQueryItem("fields[libraryEntries]",
+                     "status,progress,reconsumeCount,reconsuming,notes,private,ratingTwenty,"
+                     "startedAt,finishedAt,updatedAt,anime");
+  url.setQuery(query);
+  return url;
+}
+
+QString dateString(const FuzzyDate& date) {
+  return date ? QString::fromStdString(date.to_string()) : QString{};
+}
+
+QJsonObject resourceIdentifier(const QString& type, const QString& id) {
+  return {
+      {"type", type},
+      {"id", id},
+  };
+}
+
+QByteArray updateListEntryBody(const anime::list::Entry& entry, const QString& userId) {
+  QJsonObject attributes{
+      {"status", fromListStatus(entry.status)},
+      {"progress", entry.watched_episodes},
+      {"private", entry.is_private},
+      {"reconsumeCount", entry.rewatched_times},
+      {"reconsuming", entry.rewatching},
+      {"notes", QString::fromStdString(entry.notes)},
+  };
+  if (entry.score > 0) {
+    attributes["ratingTwenty"] = fromListScore(entry.score);
+  } else {
+    attributes["ratingTwenty"] = QJsonValue::Null;
+  }
+  if (entry.date_started) attributes["startedAt"] = dateString(entry.date_started);
+  if (entry.date_completed) attributes["finishedAt"] = dateString(entry.date_completed);
+
+  QJsonObject relationships{
+      {"anime", QJsonObject{{"data", resourceIdentifier("anime", QString::number(entry.anime_id))}}},
+  };
+  if (!userId.isEmpty()) {
+    relationships["user"] = QJsonObject{{"data", resourceIdentifier("users", userId)}};
+  }
+
+  QJsonObject data{
+      {"type", "libraryEntries"},
+      {"attributes", attributes},
+      {"relationships", relationships},
+  };
+  if (entry.id != anime::list::kUnknownId) data["id"] = QString::number(entry.id);
+
+  return QJsonDocument{QJsonObject{{"data", data}}}.toJson(QJsonDocument::Compact);
 }
 
 int nextOffset(const QJsonObject& root) {
@@ -322,6 +380,68 @@ void Service::fetchSeasonPage(const anime::Season season, int offset,
             anime::season_db.set(season, *ids);
             if (done) done(true, QString{"Fetched %1 Kitsu season entries."}.arg(ids->size()));
           });
+}
+
+void Service::updateListEntry(const anime::list::Entry& entry,
+                              std::function<void(bool, const QString&)> done) {
+  if (taiga::accounts.kitsuAccessToken().empty()) {
+    if (done) done(false, "Kitsu access token is not configured.");
+    return;
+  }
+  if (entry.anime_id == anime::list::kUnknownId) {
+    if (done) done(false, "Could not update an unknown Kitsu entry.");
+    return;
+  }
+
+  auto userId = QString::fromStdString(taiga::accounts.kitsuUserId()).trimmed();
+  if (userId.isEmpty() && entry.id == anime::list::kUnknownId) {
+    fetchAuthenticatedUser([this, entry, done = std::move(done)](
+                               bool ok, const QString& resolvedUserId,
+                               const QString& message) mutable {
+      if (!ok) {
+        if (done) done(false, message);
+        return;
+      }
+      updateListEntryWithUser(entry, resolvedUserId, std::move(done));
+    });
+    return;
+  }
+
+  updateListEntryWithUser(entry, userId, std::move(done));
+}
+
+void Service::updateListEntryWithUser(const anime::list::Entry& entry, const QString& userId,
+                                      std::function<void(bool, const QString&)> done) {
+  auto request = apiRequest(updateListEntryUrl(entry));
+  request.setHeader(QNetworkRequest::ContentTypeHeader, "application/vnd.api+json");
+  const auto verb = entry.id == anime::list::kUnknownId ? "POST" : "PATCH";
+  auto* reply =
+      taiga::network()->sendCustomRequest(request, verb, updateListEntryBody(entry, userId));
+  connect(reply, &QNetworkReply::finished, this, [reply, entry, done = std::move(done)]() mutable {
+    if (reply->error() != QNetworkReply::NoError) {
+      const auto message = reply->errorString();
+      reply->deleteLater();
+      if (done) done(false, message);
+      return;
+    }
+
+    const auto document = QJsonDocument::fromJson(reply->readAll());
+    reply->deleteLater();
+    if (!document.isObject()) {
+      if (done) done(false, "Could not parse saved Kitsu entry.");
+      return;
+    }
+
+    const auto root = document.object();
+    if (const auto savedEntry = parseListEntry(root.value("data").toObject(), entry.anime_id)) {
+      anime::db.updateEntry(*savedEntry);
+      if (done) done(true, "Saved Kitsu entry.");
+      return;
+    }
+
+    anime::db.updateEntry(entry);
+    if (done) done(true, "Saved Kitsu entry.");
+  });
 }
 
 }  // namespace taiga_sync::kitsu

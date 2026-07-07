@@ -28,6 +28,7 @@
 #include "gui/utils/theme.hpp"
 #include "media/anime_db.hpp"
 #include "track/episode.hpp"
+#include "track/list_update.hpp"
 #include "track/media.hpp"
 
 namespace gui {
@@ -70,6 +71,10 @@ NowPlayingWidget::NowPlayingWidget(QWidget* parent) : QFrame(parent) {
               reset();
             }
           });
+  connect(track::list_update::manager(), &track::list_update::Manager::countdownChanged, this,
+          [this](int) { refreshTimer(); });
+  connect(track::list_update::manager(), &track::list_update::Manager::statusChanged, this,
+          [this](const QString&) { refreshTimer(); });
 }
 
 void NowPlayingWidget::reset() {
@@ -127,7 +132,27 @@ void NowPlayingWidget::refresh() {
                            .arg(u"%1/%2"_s.arg(QString::fromStdString(episodeNumber)).arg(episodeCount))
                            .arg("font-weight: 600; text-decoration: none;"));
 
-  m_timerLabel->setText("List update in <b style=\"font-weight: 600;\">00:00</b>");
+  refreshTimer();
+}
+
+void NowPlayingWidget::refreshTimer() {
+  if (!m_episode.has_value()) {
+    m_timerLabel->setText({});
+    return;
+  }
+
+  const auto status = track::list_update::manager()->statusText();
+  if (!status.isEmpty()) {
+    m_timerLabel->setText(status.toHtmlEscaped());
+    return;
+  }
+
+  const int seconds = track::list_update::manager()->remainingSeconds();
+  const int minutes = seconds / 60;
+  const int remaining = seconds % 60;
+  m_timerLabel->setText(u"List update in <b style=\"font-weight: 600;\">%1:%2</b>"_s
+                            .arg(minutes, 2, 10, QLatin1Char('0'))
+                            .arg(remaining, 2, 10, QLatin1Char('0')));
 }
 
 }  // namespace gui

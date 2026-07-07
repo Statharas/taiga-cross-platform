@@ -24,6 +24,7 @@
 #include "media/anime_season.hpp"
 #include "media/anime_season_db.hpp"
 #include "sync/myanimelist_parsers.hpp"
+#include "sync/myanimelist_utils.hpp"
 #include "taiga/accounts.hpp"
 #include "taiga/network.hpp"
 
@@ -103,6 +104,39 @@ QNetworkRequest searchRequest(const QString& queryText) {
                        "Bearer " +
                            QByteArray::fromStdString(taiga::accounts.myanimelistAccessToken()));
   return request;
+}
+
+QNetworkRequest updateListEntryRequest(int animeId) {
+  QUrl url{u"https://api.myanimelist.net/v2/anime/%1/my_list_status"_s.arg(animeId)};
+  QUrlQuery query;
+  query.addQueryItem("fields",
+                     "status,score,num_episodes_watched,is_rewatching,updated_at,start_date,"
+                     "finish_date,num_times_rewatched,tags,comments");
+  url.setQuery(query);
+
+  QNetworkRequest request{url};
+  request.setRawHeader("Authorization",
+                       "Bearer " +
+                           QByteArray::fromStdString(taiga::accounts.myanimelistAccessToken()));
+  request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+  return request;
+}
+
+QByteArray updateListEntryBody(const anime::list::Entry& entry) {
+  QUrlQuery body;
+  body.addQueryItem("num_watched_episodes", QString::number(entry.watched_episodes));
+  body.addQueryItem("status", fromListStatus(entry.status));
+  body.addQueryItem("score", QString::number(fromListScore(entry.score)));
+  if (entry.date_started) {
+    body.addQueryItem("start_date", QString::fromStdString(entry.date_started.to_string()));
+  }
+  if (entry.date_completed) {
+    body.addQueryItem("finish_date", QString::fromStdString(entry.date_completed.to_string()));
+  }
+  body.addQueryItem("is_rewatching", entry.rewatching ? "true" : "false");
+  body.addQueryItem("num_times_rewatched", QString::number(entry.rewatched_times));
+  body.addQueryItem("comments", QString::fromStdString(entry.notes));
+  return body.query(QUrl::FullyEncoded).toUtf8();
 }
 
 int nextOffset(const QJsonObject& root) {
@@ -269,6 +303,45 @@ void Service::fetchSeasonPage(const anime::Season season, int offset,
               done(true, QString{"Fetched %1 MyAnimeList season entries."}.arg(ids->size()));
             }
           });
+}
+
+void Service::updateListEntry(const anime::list::Entry& entry,
+                              std::function<void(bool, const QString&)> done) {
+  if (taiga::accounts.myanimelistAccessToken().empty()) {
+    if (done) done(false, "MyAnimeList access token is not configured.");
+    return;
+  }
+  if (entry.anime_id == anime::list::kUnknownId) {
+    if (done) done(false, "Could not update an unknown MyAnimeList entry.");
+    return;
+  }
+
+  auto* reply = taiga::network()->sendCustomRequest(updateListEntryRequest(entry.anime_id), "PATCH",
+                                                    updateListEntryBody(entry));
+  connect(reply, &QNetworkReply::finished, this, [reply, entry, done = std::move(done)]() mutable {
+    if (reply->error() != QNetworkReply::NoError) {
+      const auto message = reply->errorString();
+      reply->deleteLater();
+      if (done) done(false, message);
+      return;
+    }
+
+    const auto document = QJsonDocument::fromJson(reply->readAll());
+    reply->deleteLater();
+    if (!document.isObject()) {
+      if (done) done(false, "Could not parse saved MyAnimeList entry.");
+      return;
+    }
+
+    if (const auto savedEntry = parseListEntry(document.object(), entry.anime_id)) {
+      anime::db.updateEntry(*savedEntry);
+      if (done) done(true, "Saved MyAnimeList entry.");
+      return;
+    }
+
+    anime::db.updateEntry(entry);
+    if (done) done(true, "Saved MyAnimeList entry.");
+  });
 }
 
 }  // namespace taiga_sync::myanimelist

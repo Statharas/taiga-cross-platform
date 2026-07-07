@@ -24,6 +24,7 @@
 #include "taiga/settings.hpp"
 #include "taiga/version.hpp"
 #include "track/episode.hpp"
+#include "track/list_update.hpp"
 #include "track/torrent_feed.hpp"
 #include "track/recognition.hpp"
 #include "track/recognition_cache.hpp"
@@ -71,6 +72,32 @@ int main(int argc, char* argv[]) {
           "Fate/strange Fake filename episode parsing changed");
   require(track::recognition::identify(fateEpisode) == fateStrangeFake.id,
           "Fate/strange Fake filename should identify against slash-normalized title");
+  auto fateEpisodeTwo = track::recognition::parseFileInfo(QFileInfo{
+      "/home/user/Downloads/[SubsPlease] Fate Strange Fake (01-13) (1080p) [Batch]/"
+      "[SubsPlease] Fate Strange Fake - 02 (1080p) [966B43E0].mkv"});
+  require(fateEpisodeTwo.element(anitomy::ElementKind::Title) == "Fate Strange Fake",
+          "Fate/strange Fake episode 02 filename title parsing changed");
+  require(fateEpisodeTwo.element(anitomy::ElementKind::Episode) == "02",
+          "Fate/strange Fake episode 02 should come from the file, not the batch folder");
+  require(track::recognition::identify(fateEpisodeTwo) == fateStrangeFake.id,
+          "Fate/strange Fake episode 02 should identify against slash-normalized title");
+  fateEpisodeTwo.setAnimeId(fateStrangeFake.id);
+  const auto preparedFateUpdate = track::list_update::prepareUpdate(fateEpisodeTwo);
+  require(preparedFateUpdate.has_value(), "Detected Fate/strange Fake episode should prepare a list update");
+  require(preparedFateUpdate->entry.anime_id == fateStrangeFake.id,
+          "Prepared list update changed anime id");
+  require(preparedFateUpdate->entry.watched_episodes == 2,
+          "Prepared list update should advance watched episode");
+  require(preparedFateUpdate->entry.status == anime::list::Status::Watching,
+          "Prepared list update should move active anime to watching");
+  ListEntry completedFateEntry;
+  completedFateEntry.anime_id = fateStrangeFake.id;
+  completedFateEntry.status = anime::list::Status::Completed;
+  completedFateEntry.watched_episodes = 13;
+  anime::db.updateEntry(completedFateEntry);
+  require(!track::list_update::prepareUpdate(fateEpisodeTwo) ||
+              track::list_update::prepareUpdate(fateEpisodeTwo)->entry.anime_id == anime::list::kUnknownId,
+          "Completed list entries should not be regressed by media detection");
 
   const auto entryJson = QJsonDocument::fromJson(R"({
     "id": 42,

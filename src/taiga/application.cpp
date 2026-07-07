@@ -33,6 +33,7 @@
 #include "taiga/path.hpp"
 #include "taiga/settings.hpp"
 #include "taiga/version.hpp"
+#include "track/list_update.hpp"
 #include "track/media.hpp"
 
 namespace taiga {
@@ -77,6 +78,7 @@ int Application::run() {
   anime::db.init();
   anime::history.init();
   track::media::detection()->init();
+  track::list_update::manager()->init();
 
   gui::theme.initStyle();
   setWindowIcon(gui::theme.getIcon("taiga", "png"));

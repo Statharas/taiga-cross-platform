@@ -18,8 +18,11 @@
 
 #include "media.hpp"
 
+#include <algorithm>
+
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QString>
 
 #include "base/file.hpp"
 #include "base/log.hpp"
@@ -57,6 +60,19 @@ std::optional<track::Episode> episodeFromMediaInfo(const anisthesia::MediaInfo& 
 bool sameEpisode(const track::Episode& left, const track::Episode& right) {
   return left.animeId() == right.animeId() &&
          left.element(anitomy::ElementKind::Episode) == right.element(anitomy::ElementKind::Episode);
+}
+
+QString mediaStateName(const anisthesia::MediaState state) {
+  switch (state) {
+    case anisthesia::MediaState::Playing:
+      return "playing";
+    case anisthesia::MediaState::Paused:
+      return "paused";
+    case anisthesia::MediaState::Stopped:
+      return "stopped";
+    default:
+      return "unknown";
+  }
 }
 
 }  // namespace
@@ -136,13 +152,23 @@ void Detection::poll() {
     return;
   }
 
-  currentPlayer_ = results.front().player;
-  currentMedia_ = results.front().media.front();
+  const auto result = std::ranges::find_if(results, [](const auto& result) {
+    return !result.media.empty() && !result.media.front().information.empty();
+  });
+  if (result == results.end()) return;
+
+  currentPlayer_ = result->player;
+  currentMedia_ = result->media.front();
 
   const auto episode = episodeFromMediaInfo(currentMedia_->information.front());
   if (!episode) return;
 
   if (!currentEpisode_ || !sameEpisode(*currentEpisode_, *episode)) {
+    const auto& mediaInfo = currentMedia_->information.front();
+    LOGD("Detected media: player={} state={} type={} value={} anime_id={} episode={}",
+         currentPlayer_->name, mediaStateName(currentMedia_->state).toStdString(),
+         static_cast<int>(mediaInfo.type), mediaInfo.value, episode->animeId(),
+         episode->element(anitomy::ElementKind::Episode));
     currentEpisode_ = *episode;
     emit currentEpisodeChanged(episode);
   }
