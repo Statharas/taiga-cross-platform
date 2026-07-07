@@ -9,7 +9,7 @@ On this Linux machine, the v1 default feed source:
 
 `https://www.tokyotosho.info/rss.php?filter=1,11&zwnj=0`
 
-currently responds with Cloudflare `522` after about 19.5 seconds. The v2
+currently responds with Cloudflare `525` after about 19.5 seconds. The v2
 network manager previously had a 10 second transfer timeout, so the native app
 timed out before it could receive and report the server response. The v1 HTTP
 stack uses a 30 second timeout.
@@ -168,6 +168,6 @@ Needed v2 pieces:
 ## Practical note
 
 TokyoToshokan is currently a poor default for testing on this machine because it
-returns Cloudflare `522` slowly. Nyaa is the better active test source right now.
+returns Cloudflare `525` slowly. Nyaa is the better active test source right now.
 This does not remove the need to support TokyoToshokan; it means v2 should report
 the server failure accurately and not fail early with a client-side timeout.

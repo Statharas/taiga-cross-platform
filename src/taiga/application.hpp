@@ -43,6 +43,7 @@ public:
   bool isVerbose() const;
 
   gui::MainWindow* mainWindow() const;
+  void setMainWindowForTest(gui::MainWindow* window);
 
 private:
   bool hasPreviousInstance();

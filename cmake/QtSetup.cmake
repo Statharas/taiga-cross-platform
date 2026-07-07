@@ -18,6 +18,10 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	list(APPEND TAIGA_QT_COMPONENTS DBus)
 endif()
 
+if (TAIGA_BUILD_TESTS)
+	list(APPEND TAIGA_QT_COMPONENTS Test)
+endif()
+
 find_package(Qt6 REQUIRED COMPONENTS ${TAIGA_QT_COMPONENTS})
 
 qt_standard_project_setup(

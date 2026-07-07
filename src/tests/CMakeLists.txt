@@ -46,3 +46,23 @@ target_link_libraries(taiga-main-ui-parity-tests PRIVATE
 )
 
 add_test(NAME taiga-main-ui-parity COMMAND taiga-main-ui-parity-tests)
+
+add_executable(taiga-ui-interaction-driver-tests
+	../media/anime_list_export.cpp
+	../media/anime_list_export.hpp
+	../taiga/application.cpp
+	../taiga/application.hpp
+	../taiga/session.cpp
+	../taiga/session.hpp
+	ui_interaction_driver_test.cpp
+)
+
+target_link_libraries(taiga-ui-interaction-driver-tests PRIVATE
+	Qt6::Test
+	Qt6::Widgets
+	taiga-core
+	taiga-gui
+	taiga-resources
+)
+
+add_test(NAME taiga-ui-interaction-driver COMMAND taiga-ui-interaction-driver-tests)

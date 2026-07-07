@@ -104,6 +104,10 @@ gui::MainWindow* Application::mainWindow() const {
   return window_.get();
 }
 
+void Application::setMainWindowForTest(gui::MainWindow* window) {
+  window_ = window;
+}
+
 bool Application::hasPreviousInstance() {
   instance_lock_.setStaleLockTime(0);
   return !instance_lock_.tryLock();

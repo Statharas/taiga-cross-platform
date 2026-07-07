@@ -8,6 +8,10 @@ and `src/v1/ui/command.cpp`.
 For the component-by-component checklist, see
 `docs/screen-component-parity-map.md`.
 
+For formal v1 requirements and gap tracking, see
+`docs/v1-screen-requirements.md`, `docs/todo-screen-audit.md`, and
+`docs/test-driver-strategy.md`.
+
 | v1 screen or shell part | Qt migration status |
 | --- | --- |
 | Main menu | Present: File, Services, Tools, View, Help. Services keeps sync/export actions; View exposes Now Playing and status bar toggles. |
