@@ -545,12 +545,18 @@ SettingsDialog::SettingsDialog(QWidget* parent) : QDialog(parent), ui_(new Ui::S
   {
     auto* page = settingsPage(torrentsDiscovery);
     addEditableComboBox(page, tr("Feed source"), "rss.torrent.source",
-                        {"https://www.tokyotosho.info/rss.php?filter=1,11&zwnj=0",
-                         "https://nyaa.si/?page=rss&c=1_2&f=0"},
+                        {"https://anidex.info/rss/?cat=1&lang_id=1",
+                         "https://nyaa.net/feed?c=3_5&s=0",
+                         "https://nyaa.si/?page=rss&c=1_2&f=0",
+                         "http://tracker.minglong.org/rss.xml",
+                         "https://www.shanaproject.com/feeds/site/",
+                         "https://subsplease.org/rss/?t&r=1080",
+                         "https://www.tokyotosho.info/rss.php?filter=1,11&zwnj=0"},
                         "https://www.tokyotosho.info/rss.php?filter=1,11&zwnj=0");
     addEditableComboBox(page, tr("Search URL"), "rss.torrent.search",
-                        {"https://nyaa.si/?page=rss&c=1_2&f=0&q=%title%",
-                         "https://www.tokyotosho.info/search.php?terms=%title%"},
+                        {"https://anidex.info/rss/?cat=1&lang_id=1&q=%title%",
+                         "https://nyaa.net/feed?c=3_5&s=0&q=%title%",
+                         "https://nyaa.si/?page=rss&c=1_2&f=0&q=%title%"},
                         "https://nyaa.si/?page=rss&c=1_2&f=0&q=%title%");
     auto* autoCheck = addCheckBox(page, tr("Check automatically"), "rss.torrent.autoCheck", true);
     auto* interval = addSpinBox(page, tr("Check interval"), "rss.torrent.checkInterval", 60, 10, 3600, tr(" min"));

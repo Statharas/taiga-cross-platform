@@ -187,7 +187,11 @@ void TorrentsWidget::fetch() {
   }
 
   setBusy(true);
-  auto* reply = taiga::network()->get(QNetworkRequest{url});
+  QNetworkRequest request{url};
+  request.setHeaders(taiga::NetworkAccessManager::commonHeaders());
+  request.setRawHeader("Accept", "application/rss+xml, */*");
+  request.setTransferTimeout(std::chrono::seconds{30});
+  auto* reply = taiga::network()->get(request);
   connect(reply, &QNetworkReply::finished, this, [this, reply]() {
     setBusy(false);
     if (reply->error() != QNetworkReply::NoError) {

@@ -27,7 +27,7 @@ namespace taiga {
 
 NetworkAccessManager::NetworkAccessManager(QObject* parent) : QNetworkAccessManager{parent} {
   setAutoDeleteReplies(true);
-  setTransferTimeout(std::chrono::seconds{10});
+  setTransferTimeout(std::chrono::seconds{30});
 
   // @TODO: Set proxy
 
