@@ -30,6 +30,7 @@
 #include "base/rss.hpp"
 #include "base/string.hpp"
 #include "media/anime_db.hpp"
+#include "media/anime_list.hpp"
 #include "taiga/path.hpp"
 #include "taiga/settings.hpp"
 #include "track/episode.hpp"
@@ -40,16 +41,34 @@ namespace track::torrent {
 namespace {
 
 QJsonArray filterSettings() {
+  return {
+      QJsonObject{{"name", "Select currently watching"}, {"enabled", true}},
+      QJsonObject{{"name", "Select airing anime in plan to watch"}, {"enabled", true}},
+      QJsonObject{{"name", "Discard dropped"}, {"enabled", true}},
+      QJsonObject{{"name", "Discard and deactivate not-in-list anime"}, {"enabled", true}},
+      QJsonObject{{"name", "Discard watched and available episodes"}, {"enabled", true}},
+      QJsonObject{{"name", "Prefer high-resolution files"}, {"enabled", true}},
+  };
+}
+
+bool isLegacyDefaultFilterList(const QJsonArray& filters) {
+  bool hasLegacyDefault = false;
+  bool hasListAwareDefault = false;
+  for (const auto& value : filters) {
+    const auto name = value.toObject().value("name").toString();
+    hasLegacyDefault = hasLegacyDefault || name == "Prefer best resolution" ||
+                       name == "Ignore unknown episodes" || name == "Discard batches";
+    hasListAwareDefault = hasListAwareDefault || name == "Select currently watching" ||
+                          name == "Discard and deactivate not-in-list anime";
+  }
+  return hasLegacyDefault && !hasListAwareDefault;
+}
+
+QJsonArray configuredFilterSettings() {
   const auto value = taiga::settings.stringValue("rss.torrent.filters.itemsJson");
   const auto document = QJsonDocument::fromJson(value.toUtf8());
-  if (document.isArray()) return document.array();
-
-  return {
-      QJsonObject{{"name", "Discard batches"}, {"enabled", true}},
-      QJsonObject{{"name", "Prefer fansub groups"}, {"enabled", true}},
-      QJsonObject{{"name", "Prefer best resolution"}, {"enabled", true}},
-      QJsonObject{{"name", "Ignore unknown episodes"}, {"enabled", true}},
-  };
+  if (document.isArray() && !isLegacyDefaultFilterList(document.array())) return document.array();
+  return filterSettings();
 }
 
 QString cacheKey(const QString& source) {
@@ -90,6 +109,16 @@ bool hasEpisodeNumber(const QString& text) {
 bool itemHasEpisodeNumber(const Item& item) {
   return hasEpisodeNumber(item.title) || hasEpisodeNumber(item.filename) ||
          hasEpisodeNumber(item.description);
+}
+
+std::optional<int> episodeNumber(const Item& item) {
+  static const QRegularExpression number{R"(^\s*(\d{1,4}))"};
+  const auto match = number.match(item.episode);
+  if (!match.hasMatch()) return std::nullopt;
+
+  bool ok = false;
+  const auto value = match.captured(1).toInt(&ok);
+  return ok ? std::optional<int>{value} : std::nullopt;
 }
 
 QString namespaceValue(const rss::Item& item, const QString& suffix) {
@@ -195,6 +224,45 @@ void mark(Item& item, ItemState state, const QString& filter) {
 
 void applyNamedFilter(Item& item, const QString& name) {
   const auto lower = name.toCaseFolded();
+  const auto* anime = anime::db.item(item.anime_id);
+  const auto* entry = anime::db.entry(item.anime_id);
+
+  if (lower == "select currently watching") {
+    if (entry && entry->status == anime::list::Status::Watching) {
+      mark(item, ItemState::Selected, name);
+    }
+    return;
+  }
+
+  if (lower == "select airing anime in plan to watch") {
+    if (anime && entry && anime->status == anime::Status::Airing &&
+        entry->status == anime::list::Status::PlanToWatch) {
+      mark(item, ItemState::Selected, name);
+    }
+    return;
+  }
+
+  if (lower == "discard dropped") {
+    if (entry && entry->status == anime::list::Status::Dropped) {
+      mark(item, ItemState::Discarded, name);
+    }
+    return;
+  }
+
+  if (lower == "discard and deactivate not-in-list anime") {
+    if (!entry || !anime) {
+      mark(item, ItemState::DiscardedInactive, name);
+    }
+    return;
+  }
+
+  if (lower == "discard watched and available episodes") {
+    const auto episode = episodeNumber(item);
+    if (entry && episode && *episode <= entry->watched_episodes) {
+      mark(item, ItemState::Discarded, name);
+    }
+    return;
+  }
 
   if (lower == "discard batches") {
     if (item.torrent_category == Category::Batch || itemContains(item, "batch") ||
@@ -204,8 +272,9 @@ void applyNamedFilter(Item& item, const QString& name) {
     return;
   }
 
-  if (lower == "prefer best resolution") {
-    if (itemContains(item, "2160p") || itemContains(item, "1080p")) {
+  if (lower == "prefer best resolution" || lower == "prefer high-resolution files") {
+    if (item.state == ItemState::Selected &&
+        (itemContains(item, "2160p") || itemContains(item, "1080p"))) {
       mark(item, ItemState::Preferred, name);
     }
     return;
@@ -234,7 +303,7 @@ void applyNamedFilter(Item& item, const QString& name) {
 
   if (lower.startsWith("prefer:")) {
     const auto pattern = name.mid(QString{"prefer:"}.size()).trimmed();
-    if (!pattern.isEmpty() && itemContains(item, pattern)) {
+    if (item.state == ItemState::Selected && !pattern.isEmpty() && itemContains(item, pattern)) {
       mark(item, ItemState::Preferred, name);
     }
   }
@@ -370,7 +439,7 @@ void applyFilters(std::vector<Item>& items) {
 
     if (!taiga::settings.boolValue("rss.torrent.filters.enabled", true)) continue;
 
-    for (const auto& value : filterSettings()) {
+    for (const auto& value : configuredFilterSettings()) {
       const auto object = value.toObject();
       if (!object.value("enabled").toBool(true)) continue;
       applyNamedFilter(item, object.value("name").toString());
@@ -383,11 +452,12 @@ void sortItems(std::vector<Item>& items) {
     if (statePriority(lhs.state) != statePriority(rhs.state)) {
       return statePriority(lhs.state) < statePriority(rhs.state);
     }
-    if (lhs.torrent_category != rhs.torrent_category) {
-      return static_cast<int>(lhs.torrent_category) < static_cast<int>(rhs.torrent_category);
+    const auto lhsDate = QDateTime::fromString(lhs.published, Qt::RFC2822Date);
+    const auto rhsDate = QDateTime::fromString(rhs.published, Qt::RFC2822Date);
+    if (lhsDate.isValid() && rhsDate.isValid() && lhsDate != rhsDate) {
+      return rhsDate < lhsDate;
     }
-    if (lhs.anime_id != rhs.anime_id) return lhs.anime_id < rhs.anime_id;
-    return lhs.title.localeAwareCompare(rhs.title) < 0;
+    return false;
   });
 }
 

@@ -60,6 +60,20 @@ QTreeView#libraryView::item:selected:!active {
   background-color: rgba(255, 255, 255, 10%);
 }
 
+QTableWidget#torrentList {
+  background-color: #1c1c1c;
+  alternate-background-color: rgba(255, 255, 255, 3%);
+  gridline-color: transparent;
+}
+
+QTableWidget#torrentList::item:hover:!selected {
+  background-color: rgba(255, 255, 255, 5%);
+}
+
+QTableWidget#torrentList::item:selected {
+  background-color: rgba(255, 255, 255, 20%);
+}
+
 /* Now Playing */
 
 #nowPlaying {

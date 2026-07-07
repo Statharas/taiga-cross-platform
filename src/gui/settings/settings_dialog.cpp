@@ -233,17 +233,30 @@ QJsonObject replyObject(QNetworkReply* reply, QString* errorMessage) {
 
 QJsonArray defaultTorrentFilters() {
   return {
-      QJsonObject{{"name", "Discard batches"}, {"enabled", true}},
-      QJsonObject{{"name", "Prefer fansub groups"}, {"enabled", true}},
-      QJsonObject{{"name", "Prefer best resolution"}, {"enabled", true}},
-      QJsonObject{{"name", "Ignore unknown episodes"}, {"enabled", true}},
+      QJsonObject{{"name", "Select currently watching"}, {"enabled", true}},
+      QJsonObject{{"name", "Select airing anime in plan to watch"}, {"enabled", true}},
+      QJsonObject{{"name", "Discard dropped"}, {"enabled", true}},
+      QJsonObject{{"name", "Discard and deactivate not-in-list anime"}, {"enabled", true}},
+      QJsonObject{{"name", "Discard watched and available episodes"}, {"enabled", true}},
+      QJsonObject{{"name", "Prefer high-resolution files"}, {"enabled", true}},
   };
 }
 
 QJsonArray torrentFilters() {
   const auto text = taiga::settings.stringValue("rss.torrent.filters.itemsJson");
   const auto document = QJsonDocument::fromJson(text.toUtf8());
-  return document.isArray() ? document.array() : defaultTorrentFilters();
+  if (!document.isArray()) return defaultTorrentFilters();
+
+  bool hasLegacyDefault = false;
+  bool hasListAwareDefault = false;
+  for (const auto& value : document.array()) {
+    const auto name = value.toObject().value("name").toString();
+    hasLegacyDefault = hasLegacyDefault || name == "Prefer best resolution" ||
+                       name == "Ignore unknown episodes" || name == "Discard batches";
+    hasListAwareDefault = hasListAwareDefault || name == "Select currently watching" ||
+                          name == "Discard and deactivate not-in-list anime";
+  }
+  return hasLegacyDefault && !hasListAwareDefault ? defaultTorrentFilters() : document.array();
 }
 
 void addTorrentFilterItem(QListWidget* list, const QString& name, bool enabled) {

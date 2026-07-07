@@ -63,7 +63,8 @@ filter pipeline.
    release group, video resolution, and source category.
 5. Filters mark items as selected, preferred, discarded, deactivated, hidden, or
    archived.
-6. Items are sorted by state priority.
+6. Items are sorted by state priority while preserving the feed order, which is
+   normally newest release first.
 
 ### View behavior
 
@@ -85,6 +86,9 @@ The v1 list has:
   anime, select/prefer fansub, more torrents, search service.
 - Debug-mode row coloring for selected and discarded states.
 - Status bar updates for marked torrent count.
+- Default selection is list-aware: currently watching entries and airing
+  plan-to-watch entries may be selected; not-in-list items are deactivated; high
+  resolution and fansub preferences only refine already-eligible items.
 
 ### Download behavior
 
@@ -136,6 +140,10 @@ Recently aligned:
   resolution, and matched anime ID for status icons.
 - Filters evaluate the preserved filename/details so title normalization does
   not hide resolution or episode tokens.
+- Default filters now follow v1 list-aware eligibility before applying
+  high-resolution or fansub preferences.
+- The table preserves newest-first feed ordering after state filtering and hides
+  Qt's row-number gutter to match the v1 checkbox-first list.
 - Shift-click checkbox range marking works within the same torrent group.
 - Download queue sorting follows the configured episode/date ordering.
 - Magnet links and `.torrent` downloads are both supported.

@@ -166,6 +166,21 @@ QTableWidget::item:selected {
   color: #000;
 }
 
+QTableWidget#torrentList {
+  background-color: #fff;
+  alternate-background-color: #f4f4f4;
+  gridline-color: transparent;
+}
+
+QTableWidget#torrentList::item:hover:!selected {
+  background-color: #e8e8e8;
+}
+
+QTableWidget#torrentList::item:selected {
+  background-color: #dcdcdc;
+  color: #000;
+}
+
 /* Now Playing */
 
 #nowPlaying {

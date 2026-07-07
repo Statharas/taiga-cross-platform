@@ -85,6 +85,24 @@ QTreeView#libraryView::item {
   height: 24px;
 }
 
+QTableWidget#torrentList {
+  outline: none;
+  show-decoration-selected: 1;
+}
+
+QTableWidget#torrentList QHeaderView::section {
+  font-weight: 400;
+  height: 22px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+QTableWidget#torrentList::item {
+  border: none;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
 /* Now Playing */
 
 #nowPlaying {

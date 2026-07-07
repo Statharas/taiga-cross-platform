@@ -5,6 +5,7 @@ add_executable(taiga-core-tests
 target_link_libraries(taiga-core-tests PRIVATE
 	Qt6::Core
 	taiga-core
+	taiga-resources
 )
 
 add_test(NAME taiga-core-smoke COMMAND taiga-core-tests)

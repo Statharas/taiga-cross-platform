@@ -6,11 +6,13 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QTemporaryDir>
 
 #include <anisthesia.hpp>
 
 #include "base/rss.hpp"
 #include "media/anime.hpp"
+#include "media/anime_db.hpp"
 #include "media/anime_list.hpp"
 #include "media/anime_list_utils.hpp"
 #include "media/anime_season.hpp"
@@ -21,6 +23,7 @@
 #include "taiga/settings.hpp"
 #include "taiga/version.hpp"
 #include "track/torrent_feed.hpp"
+#include "track/recognition_cache.hpp"
 #include "track/recognition_normalize.hpp"
 
 namespace {
@@ -36,6 +39,10 @@ void require(bool condition, const char* message) {
 
 int main(int argc, char* argv[]) {
   QCoreApplication app(argc, argv);
+  QTemporaryDir dataDir;
+  require(dataDir.isValid(), "Could not create isolated test data directory");
+  qputenv("TAIGA_DATA_PATH", dataDir.path().toUtf8());
+  anime::db.init();
 
   require(taiga::version().major == 2, "Unexpected major version");
   require(track::recognition::normalize("Nisekoi: Season 2") == "nisekoi2",
@@ -133,6 +140,18 @@ int main(int argc, char* argv[]) {
   require(feed.items.size() == 1, "RSS parser did not read torrent item");
   taiga::settings.setBoolValue("rss.torrent.filters.enabled", true);
   taiga::settings.setStringValue("rss.torrent.filters.itemsJson", {});
+  Anime exampleAnime;
+  exampleAnime.id = 9001;
+  exampleAnime.status = anime::Status::Airing;
+  exampleAnime.titles.romaji = "Example Anime";
+  anime::db.updateItem(exampleAnime);
+  require(anime::db.item(9001) != nullptr, "Anime DB fixture insert failed");
+  track::recognition::cache()->update(exampleAnime);
+  ListEntry exampleEntry;
+  exampleEntry.id = 9001;
+  exampleEntry.anime_id = 9001;
+  exampleEntry.status = anime::list::Status::Watching;
+  anime::db.updateEntry(exampleEntry);
   const auto torrents = track::torrent::parseFeed(R"(
     <rss><channel><title>Nyaa</title>
       <item><title>[Group] Example Anime - 01 [1080p]</title><link>magnet:?xt=urn:btih:test</link></item>
@@ -145,8 +164,36 @@ int main(int argc, char* argv[]) {
   require(torrents.front().video == "1080p", "Torrent recognition resolution extraction changed");
   require(torrents.front().torrent_category == track::torrent::Category::Anime,
           "Torrent category detection changed");
+  require(torrents.front().anime_id == 9001, "Torrent recognition did not match list anime");
   require(torrents.front().state == track::torrent::ItemState::Preferred,
           "Torrent default resolution preference changed");
+
+  const auto unrelatedTorrents = track::torrent::parseFeed(R"(
+    <rss><channel><title>Nyaa</title>
+      <item>
+        <title>[OtherSubs] Random Feed Show - 01 [1080p]</title>
+        <link>magnet:?xt=urn:btih:random</link>
+        <pubDate>Tue, 07 Jul 2026 12:00:00 GMT</pubDate>
+      </item>
+    </channel></rss>
+  )");
+  require(unrelatedTorrents.size() == 1, "Unrelated torrent fixture did not parse");
+  require(unrelatedTorrents.front().state == track::torrent::ItemState::DiscardedInactive,
+          "Not-in-list high-resolution torrents must not be auto-marked");
+
+  taiga::settings.setStringValue("rss.torrent.filters.itemsJson", R"([
+    {"name":"Select currently watching","enabled":true},
+    {"name":"Discard and deactivate not-in-list anime","enabled":true},
+    {"name":"prefer:OtherSubs","enabled":true}
+  ])");
+  const auto fansubTorrents = track::torrent::parseFeed(R"(
+    <rss><channel><title>Nyaa</title>
+      <item><title>[OtherSubs] Random Feed Show - 01 [1080p]</title><link>magnet:?xt=urn:btih:random</link></item>
+    </channel></rss>
+  )");
+  require(fansubTorrents.front().state == track::torrent::ItemState::DiscardedInactive,
+          "Preferred fansub filters must not select anime outside the user's list");
+  taiga::settings.setStringValue("rss.torrent.filters.itemsJson", {});
 
   const auto nyaaFeed = track::torrent::parseFeedDocument(R"(
     <rss xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel>

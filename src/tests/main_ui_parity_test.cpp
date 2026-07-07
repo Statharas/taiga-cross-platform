@@ -1,5 +1,6 @@
 #include <QApplication>
 #include <QFile>
+#include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenuBar>
@@ -122,6 +123,9 @@ int main(int argc, char* argv[]) {
   require(torrentToolbar->actions().size() >= 6, "Torrent toolbar lost v1 action/separator shape");
   require(torrentTable != nullptr && torrentTable->columnCount() == 11,
           "Torrent table lost the v1 column inventory");
+  require(!torrentTable->showGrid(), "Torrent table should render as a v1 row list, not a grid");
+  require(!torrentTable->verticalHeader()->isVisible(),
+          "Torrent table should not show row numbers");
   require(torrentTable->horizontalHeaderItem(0)->text() == "Anime title",
           "Torrent first column should remain Anime title");
   require(torrentTable->horizontalHeaderItem(10)->text() == "Release date",

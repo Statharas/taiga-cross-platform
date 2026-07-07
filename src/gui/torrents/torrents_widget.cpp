@@ -114,15 +114,21 @@ TorrentsWidget::TorrentsWidget(QWidget* parent) : QWidget(parent) {
   layout->addWidget(toolbar);
 
   table_ = new QTableWidget(this);
+  table_->setObjectName("torrentList");
   table_->setColumnCount(11);
   table_->setHorizontalHeaderLabels({tr("Anime title"), tr("Episode"), tr("Group"), tr("Size"),
                                      tr("Video"), tr("S"), tr("L"), tr("D"),
                                      tr("Description"), tr("Filename"), tr("Release date")});
+  table_->setAlternatingRowColors(true);
+  table_->setShowGrid(false);
+  table_->setWordWrap(false);
   table_->setSelectionBehavior(QAbstractItemView::SelectRows);
   table_->setSelectionMode(QAbstractItemView::ExtendedSelection);
   table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
   table_->setContextMenuPolicy(Qt::CustomContextMenu);
-  table_->setSortingEnabled(true);
+  table_->setSortingEnabled(false);
+  table_->verticalHeader()->hide();
+  table_->verticalHeader()->setDefaultSectionSize(20);
   table_->horizontalHeader()->setStretchLastSection(false);
   table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
   table_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
