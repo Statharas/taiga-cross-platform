@@ -23,6 +23,7 @@
 #include <QItemSelectionModel>
 #include <QMessageBox>
 #include <QRandomGenerator>
+#include <QStatusBar>
 #include <QUrl>
 #include <QUrlQuery>
 #include <ranges>
@@ -525,7 +526,10 @@ void MediaMenu::updateEntries(const std::function<void(ListEntry&)>& update) con
     auto entry = editableEntry(item);
     update(entry);
     entry.last_updated = QDateTime::currentSecsSinceEpoch();
-    anime::db.updateEntry(entry);
+    mainWindow()->statusBar()->showMessage(tr("Updating list..."));
+    taiga_sync::updateListEntry(entry, [](bool, const QString& message) {
+      mainWindow()->statusBar()->showMessage(message, 5000);
+    });
   }
 }
 

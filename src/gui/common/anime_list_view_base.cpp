@@ -145,7 +145,10 @@ void ListViewBase::removeSelectedEntries() {
       entry.anime_id = anime->id;
       entry.status = anime::list::Status::NotInList;
       entry.last_updated = QDateTime::currentSecsSinceEpoch();
-      anime::db.updateEntry(entry);
+      mainWindow()->statusBar()->showMessage(tr("Updating list..."));
+      taiga_sync::updateListEntry(entry, [](bool, const QString& message) {
+        mainWindow()->statusBar()->showMessage(message, 5000);
+      });
     }
   }
 }
