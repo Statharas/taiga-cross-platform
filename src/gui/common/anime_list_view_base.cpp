@@ -141,7 +141,6 @@ void ListViewBase::removeSelectedEntries() {
     const auto index = m_proxyModel->mapToSource(selectedIndex);
     if (const auto anime = m_model->getAnime(index)) {
       auto entry = m_model->getListEntry(index) ? *m_model->getListEntry(index) : ListEntry{};
-      entry.id = anime->id;
       entry.anime_id = anime->id;
       entry.status = anime::list::Status::NotInList;
       entry.last_updated = QDateTime::currentSecsSinceEpoch();

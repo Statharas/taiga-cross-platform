@@ -346,7 +346,9 @@ void Service::updateListEntry(const anime::list::Entry& entry,
       {"repeat", entry.rewatched_times},
       {"notes", QString::fromStdString(entry.notes)},
   };
-  if (entry.id != anime::list::kUnknownId) variables["id"] = static_cast<qint64>(entry.id);
+  if (entry.id != anime::list::kUnknownId && entry.id != entry.anime_id) {
+    variables["id"] = static_cast<qint64>(entry.id);
+  }
   const auto startedAt = fuzzyDateInput(entry.date_started);
   if (!startedAt.isEmpty()) variables["startedAt"] = startedAt;
   const auto completedAt = fuzzyDateInput(entry.date_completed);

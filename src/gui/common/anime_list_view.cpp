@@ -208,8 +208,7 @@ bool ListView::updateProgressAt(const QModelIndex& index, int delta) {
   }
 
   mainWindow()->statusBar()->showMessage(tr("Updating list..."));
-  taiga_sync::updateListEntry(entry, [entry](bool ok, const QString& message) {
-    if (ok) anime::db.updateEntry(entry);
+  taiga_sync::updateListEntry(entry, [](bool, const QString& message) {
     mainWindow()->statusBar()->showMessage(message, 5000);
   });
   return true;

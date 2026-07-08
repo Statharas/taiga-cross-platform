@@ -514,7 +514,6 @@ ListEntry MediaMenu::editableEntry(const Anime& item) const {
   if (const auto entry = getEntry(item.id)) return *entry;
 
   return {
-      .id = item.id,
       .anime_id = item.id,
       .status = anime::list::Status::Watching,
       .last_updated = QDateTime::currentSecsSinceEpoch(),
